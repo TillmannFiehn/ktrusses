@@ -15,6 +15,10 @@
 
 package org.apache.mahout.graph.common;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -25,4 +29,20 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 public class SimplifyGraphReducer extends
     Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
 
+	@Override
+	public void reduce(Membership key, Iterable<RepresentativeEdge> values, Context ctx) throws InterruptedException, IOException {
+		
+		Map<RepresentativeEdge, RepresentativeEdge> edges = new HashMap<RepresentativeEdge, RepresentativeEdge>();
+		for(RepresentativeEdge edge : values) {
+			RepresentativeEdge prev = edges.get(edge);
+			if (prev != null) {
+				//TODO implement aggregation
+			}
+			edges.put(edge, edge);
+		}
+		for(RepresentativeEdge edge : edges.values()) {
+			ctx.write(key, edge);
+		}
+	}
+	
 }
