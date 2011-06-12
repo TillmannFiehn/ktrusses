@@ -57,13 +57,19 @@ public class Vertex implements WritableComparable<Vertex> {
 	}
 
 	@Override
-	public final int compareTo(Vertex o) {
+	public int compareTo(Vertex o) {
 		return new Long(getId()).compareTo(new Long(o.getId()));
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return o instanceof Vertex && ((Vertex) o).id == id;
+		if (o instanceof Vertex) {
+			return ((Vertex) o).id == id;
+		} else if (o instanceof VertexWithDegree) {
+			return ((VertexWithDegree) o).getVertex().equals(this);
+		} else {
+			return false;
+		}
 	}
 	
 	@Override
