@@ -24,6 +24,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
+import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
