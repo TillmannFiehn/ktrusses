@@ -21,8 +21,21 @@ import java.util.Vector;
 
 import org.apache.hadoop.io.Text;
 
+/**
+ * Interface to be implemented in order to parse the graph input file of any job
+ * to vertices and edges.
+ * 
+ */
 public interface Parser {
 
+  /**
+   * This method is called on each line of the input file.
+   * 
+   * @param description
+   *          The hole line
+   * @return A list of vertices that describe the edge or <tt>null</tt> if no
+   *         edge was described a that specific line
+   */
   public Vector<Vertex> parse(Text description);
 
 }

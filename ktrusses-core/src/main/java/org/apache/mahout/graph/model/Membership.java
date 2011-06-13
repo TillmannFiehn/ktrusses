@@ -27,6 +27,17 @@ import java.util.TreeSet;
 
 import org.apache.hadoop.io.WritableComparable;
 
+/**
+ * Key type for various graph algorithm intermediate results. Although this
+ * class can contain an arbitrary number of vertices it usually is used as a
+ * membership key of one or two vertices.
+ * 
+ * The default behavior of membership is an ordered set semantic. But if it is
+ * read from sequence file it shows bag semantics if altered. It can be
+ * overwritten by setting the collection object of vertices and working on it
+ * directly using {@link #setMembers(Collection)} and {@link #getMembers()}
+ * methods.
+ */
 public class Membership implements WritableComparable<Membership> {
 
   private Collection<Vertex> members;
@@ -56,7 +67,6 @@ public class Membership implements WritableComparable<Membership> {
       out.writeInt(0);
     }
 
-
   }
 
   @Override
@@ -71,6 +81,11 @@ public class Membership implements WritableComparable<Membership> {
 
   }
 
+  /**
+   * Compares this instance to another. This method return 0 if both memberships 
+   * are null or both memberships are empty. It returns 0 if both memberships 
+   * contain the same vertices returned in the same order by there membership collection objects.
+   */
   @Override
   public int compareTo(Membership o) {
     int compareTo = 0;
@@ -120,14 +135,36 @@ public class Membership implements WritableComparable<Membership> {
     }
   }
 
+  /**
+   * Sets the membership list to the membership <code>WritableComparable</code>.
+   * The <code>Collection</code> will be used directly. This way it is possible
+   * to overwrite the default ordered set semantic of {@link Membership}.
+   * 
+   * @param members
+   *          the collection to be used to contain the objects
+   */
   public void setMembers(Collection<Vertex> members) {
     this.members = members;
   }
 
+  /**
+   * Returns the membership collection. If not overwritten this is an ordered
+   * set of vertices.
+   * 
+   * @return the membership collection
+   */
   public Collection<Vertex> getMembers() {
     return members;
   }
 
+  /**
+   * Set a member to the membership collection. If this is the first call and no
+   * membership collection had been set via {@link Membership#setMembers(Collection)} an ordered
+   * set will be created to contain the member.
+   * 
+   * @param m
+   * @return this for convenience of chained invocation
+   */
   public Membership addMember(Vertex m) {
     if (members == null) {
       members = new TreeSet<Vertex>();
@@ -145,6 +182,9 @@ public class Membership implements WritableComparable<Membership> {
     }
   }
 
+  /** 
+   * The hash code returned will be a product of all hash codes of all vertices. 
+   */
   @Override
   public int hashCode() {
     int hash = 0;

@@ -22,18 +22,38 @@ import java.util.Vector;
 
 import org.apache.hadoop.io.Text;
 
+/**
+ * Simple parser for graph input files. It takes edges as comma separated list
+ * of vertices. For example a simple input file could look like this:
+ * 
+ * <pre>
+ *    1,2
+ *    2,3
+ *    3,1
+ * </pre>
+ * 
+ */
 public class SimpleParser implements Parser {
 
+  /**
+   * Parses a simple graph input file that contains a comma separated list of
+   * numbers representing the vertices. It silently ignores all lines that do
+   * not match the patter <tt>A,B</tt>
+   */
   @Override
   public Vector<Vertex> parse(Text description) {
-    String[] splits = description.toString().split(",");
-    TreeSet<Vertex> set = new TreeSet<Vertex>();
-    for (String s : splits) {
-      final long d = Long.parseLong(s);
-      Vertex v = new Vertex(d);
-      set.add(v);
+    try {
+      String[] splits = description.toString().split(",");
+      TreeSet<Vertex> set = new TreeSet<Vertex>();
+      for (String s : splits) {
+        final long d = Long.parseLong(s);
+        Vertex v = new Vertex(d);
+        set.add(v);
+      }
+      Vector<Vertex> vec = new Vector<Vertex>(set);
+      return vec;
+    } catch (Exception e) {
+      return null;
     }
-    Vector<Vertex> vec = new Vector<Vertex>(set);
-    return vec;
   }
 }
