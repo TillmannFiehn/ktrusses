@@ -22,7 +22,9 @@ import java.util.Map;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
@@ -55,14 +57,15 @@ public class SimplifyGraphJob extends AbstractJob {
 
     Job simplify = prepareJob(inputPath,
             outputPath,
-            SequenceFileInputFormat.class,
+            TextInputFormat.class,
             SimplifyGraphMapper.class,
             Membership.class,
             RepresentativeEdge.class,
             SimplifyGraphReducer.class,
             Membership.class,
             RepresentativeEdge.class,
-            SequenceFileOutputFormat.class);
+            TextOutputFormat.class);
+    
     simplify.waitForCompletion(true);
 
     return 0;
