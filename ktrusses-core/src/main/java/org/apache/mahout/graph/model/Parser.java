@@ -21,6 +21,6 @@ import org.apache.hadoop.io.Text;
 
 public interface Parser {
 
-	public Vector<Vertex> parse(Text description);
-	
+  public Vector<Vertex> parse(Text description);
+
 }

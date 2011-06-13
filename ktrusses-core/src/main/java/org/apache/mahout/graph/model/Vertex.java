@@ -23,58 +23,56 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class Vertex implements WritableComparable<Vertex> {
 
-	public static Vertex read(DataInput in) throws IOException {
-		Vertex v = new Vertex();
-		v.readFields(in);
-		return v;
-	}
-
-	@Override
-	public void readFields(DataInput in) throws IOException {
-		this.id = in.readLong();
-	}
-
-	private long id;
-
-	public Vertex() {
+  public static Vertex read(DataInput in) throws IOException {
+    Vertex v = new Vertex();
+    v.readFields(in);
+    return v;
   }
 
-	public Vertex(long id) {
-		this.id = id;
-	}
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    this.id = in.readLong();
+  }
+  private long id;
 
-	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeLong(this.id);
-	}
+  public Vertex() {
+  }
 
-	public void setId(long id) {
-		this.id = id;
-	}
+  public Vertex(long id) {
+    this.id = id;
+  }
 
-	public long getId() {
-		return this.id;
-	}
+  @Override
+  public void write(DataOutput out) throws IOException {
+    out.writeLong(this.id);
+  }
 
-	@Override
-	public int compareTo(Vertex o) {
-		return new Long(getId()).compareTo(new Long(o.getId()));
-	}
+  public void setId(long id) {
+    this.id = id;
+  }
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof Vertex) {
-			return ((Vertex) o).id == id;
-		} else if (o instanceof VertexWithDegree) {
-			return ((VertexWithDegree) o).getVertex().equals(this);
-		} else {
-			return false;
-		}
-	}
-	
-	@Override
-	public int hashCode() {
-		return (int) id;
-	}
-	
+  public long getId() {
+    return this.id;
+  }
+
+  @Override
+  public int compareTo(Vertex o) {
+    return new Long(getId()).compareTo(new Long(o.getId()));
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof Vertex) {
+      return ((Vertex) o).id == id;
+    } else if (o instanceof VertexWithDegree) {
+      return ((VertexWithDegree) o).getVertex().equals(this);
+    } else {
+      return false;
+    }
+  }
+
+  @Override
+  public int hashCode() {
+    return (int) id;
+  }
 }

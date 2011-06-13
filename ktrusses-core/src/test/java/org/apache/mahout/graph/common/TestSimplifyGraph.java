@@ -35,115 +35,115 @@ import org.junit.Test;
 
 public class TestSimplifyGraph extends MahoutTestCase {
 
-	@Test
-	public void testSimplifyGraphMapper() {
+  @Test
+  public void testSimplifyGraphMapper() {
 
-		try {
-			Configuration conf = new Configuration();
-			conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-			DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+    try {
+      Configuration conf = new Configuration();
+      conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
+      DummyRecordWriter<Membership, RepresentativeEdge> writer =
+              new DummyRecordWriter<Membership, RepresentativeEdge>();
 
-			SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
+      SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
-			SimplifyGraphMapper.Context ctx = DummyRecordWriter.build(simplifier,
-			    conf, writer);
-			simplifier.setup(ctx);
+      SimplifyGraphMapper.Context ctx = DummyRecordWriter.build(simplifier,
+              conf, writer);
+      simplifier.setup(ctx);
 
-			String[] file = new String[] { "1\t1", "1\t2", "2\t1", "2\t2", };
+      String[] file = new String[]{"1\t1", "1\t2", "2\t1", "2\t2",};
 
-			for (String line : file) {
-				simplifier.map(null, new Text(line), ctx);
-			}
+      for (String line : file) {
+        simplifier.map(null, new Text(line), ctx);
+      }
 
-			Map<Membership, List<RepresentativeEdge>> output = writer.getData();
+      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
 
-			assertEquals(output.size(), 1);
+      assertEquals(output.size(), 1);
 
-			Membership key = new Membership();
-			key.addMember(new Vertex(1L));
-			key.addMember(new Vertex(2L));
+      Membership key = new Membership();
+      key.addMember(new Vertex(1L));
+      key.addMember(new Vertex(2L));
 
-			List<RepresentativeEdge> edges = output.get(key);
+      List<RepresentativeEdge> edges = output.get(key);
 
-			assertNotNull(edges);
+      assertNotNull(edges);
 
-			assertEquals(edges.size(), 2);
+      assertEquals(edges.size(), 2);
 
-			RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
-			    2L));
+      RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
+              2L));
 
-			assertTrue(edges.remove(e));
-			assertTrue(edges.remove(e));
+      assertTrue(edges.remove(e));
+      assertTrue(edges.remove(e));
 
-		} catch (IOException e) {
-			throw new RuntimeException();
-		} catch (InterruptedException e) {
-			throw new RuntimeException();
-		}
-	}
+    } catch (IOException e) {
+      throw new RuntimeException();
+    } catch (InterruptedException e) {
+      throw new RuntimeException();
+    }
+  }
 
-	@Test
-	public void testSimplifyGraphReducer() {
+  @Test
+  public void testSimplifyGraphReducer() {
 
-		try {
-			Configuration conf = new Configuration();
-			conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-			DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+    try {
+      Configuration conf = new Configuration();
+      conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
+      DummyRecordWriter<Membership, RepresentativeEdge> writer =
+              new DummyRecordWriter<Membership, RepresentativeEdge>();
 
-			SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
+      SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
-			SimplifyGraphMapper.Context ctxm = DummyRecordWriter.build(simplifier,
-			    conf, writer);
-			simplifier.setup(ctxm);
+      SimplifyGraphMapper.Context ctxm = DummyRecordWriter.build(simplifier,
+              conf, writer);
+      simplifier.setup(ctxm);
 
-			String[] file = new String[] { "1\t1", "1\t2", "2\t1", "2\t2", };
+      String[] file = new String[]{"1\t1", "1\t2", "2\t1", "2\t2",};
 
-			for (String line : file) {
-				simplifier.map(null, new Text(line), ctxm);
-			}
+      for (String line : file) {
+        simplifier.map(null, new Text(line), ctxm);
+      }
 
-			Map<Membership, List<RepresentativeEdge>> output = writer.getData();
+      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
 
-			SimplifyGraphReducer aggregator = new SimplifyGraphReducer();
+      SimplifyGraphReducer aggregator = new SimplifyGraphReducer();
 
-			writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+      writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
 
-			SimplifyGraphReducer.Context ctxr = DummyRecordWriter.build(aggregator,
-			    conf, writer, Membership.class, RepresentativeEdge.class);
+      SimplifyGraphReducer.Context ctxr = DummyRecordWriter.build(aggregator,
+              conf, writer, Membership.class, RepresentativeEdge.class);
 
-			for (Entry<Membership, List<RepresentativeEdge>> entry : output
-			    .entrySet()) {
+      for (Entry<Membership, List<RepresentativeEdge>> entry : output.entrySet()) {
 
-				aggregator.reduce(entry.getKey(), entry.getValue(), ctxr);
+        aggregator.reduce(entry.getKey(), entry.getValue(), ctxr);
 
-			}
-			
-			output = writer.getData();
-			
-			assertEquals(output.size(), 1);
+      }
 
-			Membership key = new Membership();
-			key.addMember(new Vertex(1L));
-			key.addMember(new Vertex(2L));
+      output = writer.getData();
 
-			List<RepresentativeEdge> edges = output.get(key);
+      assertEquals(output.size(), 1);
 
-			assertNotNull(edges);
+      Membership key = new Membership();
+      key.addMember(new Vertex(1L));
+      key.addMember(new Vertex(2L));
 
-			assertEquals(edges.size(), 1);
+      List<RepresentativeEdge> edges = output.get(key);
 
-			RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
-			    2L));
+      assertNotNull(edges);
 
-			assertTrue(edges.remove(e));
-			assertFalse(edges.remove(e));
+      assertEquals(edges.size(), 1);
 
-		} catch (IOException e) {
-			throw new RuntimeException();
-		} catch (InterruptedException e) {
-			throw new RuntimeException();
-		}
+      RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
+              2L));
 
-	}
+      assertTrue(edges.remove(e));
+      assertFalse(edges.remove(e));
 
+    } catch (IOException e) {
+      throw new RuntimeException();
+    } catch (InterruptedException e) {
+      throw new RuntimeException();
+    }
+
+  }
 }

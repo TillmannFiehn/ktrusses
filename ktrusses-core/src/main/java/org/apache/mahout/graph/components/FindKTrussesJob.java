@@ -18,6 +18,6 @@ package org.apache.mahout.graph.components;
 /**
  *
  */
-public class FindKTrussesJob {
 
+public class FindKTrussesJob {
 }

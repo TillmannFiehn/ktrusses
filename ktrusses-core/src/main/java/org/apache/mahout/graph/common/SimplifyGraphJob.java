@@ -43,7 +43,7 @@ public class SimplifyGraphJob extends AbstractJob {
     addInputOption();
     addOutputOption();
 
-    Map<String,String> parsedArgs = parseArguments(args);
+    Map<String, String> parsedArgs = parseArguments(args);
     if (parsedArgs == null) {
       return -1;
     }
@@ -52,18 +52,17 @@ public class SimplifyGraphJob extends AbstractJob {
     Path outputPath = getOutputPath();
 
     Job simplify = prepareJob(inputPath,
-                              outputPath,
-                              SequenceFileInputFormat.class,
-                              SimplifyGraphMapper.class,
-                              Membership.class,
-                              RepresentativeEdge.class,
-                              SimplifyGraphReducer.class,
-                              Membership.class,
-                              RepresentativeEdge.class,
-                              SequenceFileOutputFormat.class);
+            outputPath,
+            SequenceFileInputFormat.class,
+            SimplifyGraphMapper.class,
+            Membership.class,
+            RepresentativeEdge.class,
+            SimplifyGraphReducer.class,
+            Membership.class,
+            RepresentativeEdge.class,
+            SequenceFileOutputFormat.class);
     simplify.waitForCompletion(true);
-    
-		return 0;
-  }
 
+    return 0;
+  }
 }

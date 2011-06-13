@@ -24,86 +24,87 @@ import java.io.IOException;
  */
 public class RepresentativeEdge extends Edge {
 
-	protected Vertex v0, v1;
-	private long d0 = Integer.MIN_VALUE, d1 = Integer.MIN_VALUE;
-	
-	public RepresentativeEdge() { }
+  protected Vertex v0, v1;
+  private long d0 = Integer.MIN_VALUE, d1 = Integer.MIN_VALUE;
 
-	public RepresentativeEdge(Vertex node0, Vertex node1) {
-		this.v0 = node0;
-		this.v1 = node1;
-	}
+  public RepresentativeEdge() {
+  }
 
-	@Override
-	public void write(DataOutput out) throws IOException {
-		v0.write(out);
-		out.writeLong(d0);
-		v1.write(out);
-		out.writeLong(d1);
-	}
+  public RepresentativeEdge(Vertex node0, Vertex node1) {
+    this.v0 = node0;
+    this.v1 = node1;
+  }
 
-	@Override
-	public void readFields(DataInput in) throws IOException {
+  @Override
+  public void write(DataOutput out) throws IOException {
+    v0.write(out);
+    out.writeLong(d0);
+    v1.write(out);
+    out.writeLong(d1);
+  }
 
-		v0 = new Vertex();
-		v0.readFields(in);
-		d0 = in.readLong();
+  @Override
+  public void readFields(DataInput in) throws IOException {
 
-		v1 = new Vertex();
-		v1.readFields(in);
-		d1 = in.readLong();
+    v0 = new Vertex();
+    v0.readFields(in);
+    d0 = in.readLong();
 
-	}
+    v1 = new Vertex();
+    v1.readFields(in);
+    d1 = in.readLong();
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof RepresentativeEdge) {
-			RepresentativeEdge e = (RepresentativeEdge) o;
-			if (v0.equals(e.v0) && v1.equals(e.v1))
-				return true;
-		}
-		return false;
-	}
+  }
 
-	public void setVertex0(Vertex v) {
-		v0 = v;
-	}
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof RepresentativeEdge) {
+      RepresentativeEdge e = (RepresentativeEdge) o;
+      if (v0.equals(e.v0) && v1.equals(e.v1)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-	public void setVertex1(Vertex v) {
-		v1 = v;
-	}
+  public void setVertex0(Vertex v) {
+    v0 = v;
+  }
 
-	public Vertex getVertex0() {
-		return v0;
-	}
+  public void setVertex1(Vertex v) {
+    v1 = v;
+  }
 
-	public Vertex getVertex1() {
-		return v1;
-	}
+  public Vertex getVertex0() {
+    return v0;
+  }
 
-	@Override
-	public int hashCode() {
-		return 1 * v0.hashCode() * v1.hashCode();
-	}
+  public Vertex getVertex1() {
+    return v1;
+  }
 
-	public void setDegree(Vertex v, Long degree) {
-		if (v0.equals(v)) {
-			d0 = degree;
-		} else if (v1.equals(v)) {
-			d1 = degree;
-		} else {
-			throw new IllegalArgumentException();
-		}
-	}
+  @Override
+  public int hashCode() {
+    return 1 * v0.hashCode() * v1.hashCode();
+  }
 
-	public long getDegree(Vertex v) {
-		if (v0.equals(v)) {
-			return d0;
-		} else if (v1.equals(v)) {
-			return d1;
-		} else {
-			throw new IllegalArgumentException();
-		}
-	}
+  public void setDegree(Vertex v, Long degree) {
+    if (v0.equals(v)) {
+      d0 = degree;
+    } else if (v1.equals(v)) {
+      d1 = degree;
+    } else {
+      throw new IllegalArgumentException();
+    }
+  }
 
+  public long getDegree(Vertex v) {
+    if (v0.equals(v)) {
+      return d0;
+    } else if (v1.equals(v)) {
+      return d1;
+    } else {
+      throw new IllegalArgumentException();
+    }
+  }
 }

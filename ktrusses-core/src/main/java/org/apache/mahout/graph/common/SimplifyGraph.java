@@ -32,73 +32,73 @@ import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
 
 public class SimplifyGraph {
-	public static class SimplifyGraphMapper extends
-	    Mapper<Object, Text, Membership, RepresentativeEdge> {
 
-		Parser parser;
+  public static class SimplifyGraphMapper extends
+          Mapper<Object, Text, Membership, RepresentativeEdge> {
 
-		@Override
-		public void setup(Context ctx) {
-			Configuration conf = ctx.getConfiguration();
-			String classname = conf.get(Parser.class.getCanonicalName());
-			try {
-				@SuppressWarnings("unchecked")
-				Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
-				parser = (Parser) parserclass.newInstance();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				// TODO log this error
-			} catch (InstantiationException e) {
-				// TODO log this error
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				// TODO log this error
-				e.printStackTrace();
-			}
-			if (parser == null) {
-				parser = new SimpleParser();
-			}
+    Parser parser;
 
-		}
+    @Override
+    public void setup(Context ctx) {
+      Configuration conf = ctx.getConfiguration();
+      String classname = conf.get(Parser.class.getCanonicalName());
+      try {
+        @SuppressWarnings("unchecked")
+        Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
+        parser = (Parser) parserclass.newInstance();
+      } catch (ClassNotFoundException e) {
+        e.printStackTrace();
+        // TODO log this error
+      } catch (InstantiationException e) {
+        // TODO log this error
+        e.printStackTrace();
+      } catch (IllegalAccessException e) {
+        // TODO log this error
+        e.printStackTrace();
+      }
+      if (parser == null) {
+        parser = new SimpleParser();
+      }
 
-		@Override
-		public void map(Object key, Text description, Context ctx)
-		    throws IOException, InterruptedException {
+    }
 
-			Vector<Vertex> members = parser.parse(description);
-			if (members.size() > 1) {
-				Iterator<Vertex> i = members.iterator();
-				Vertex node0 = i.next();
-				Vertex node1 = i.next();
-				RepresentativeEdge edge = new RepresentativeEdge(node0, node1);
-				Membership mem = new Membership();
-				mem.setMembers(members);
-				ctx.write(mem, edge);
-			}
+    @Override
+    public void map(Object key, Text description, Context ctx)
+            throws IOException, InterruptedException {
 
-		}
-	}
+      Vector<Vertex> members = parser.parse(description);
+      if (members.size() > 1) {
+        Iterator<Vertex> i = members.iterator();
+        Vertex node0 = i.next();
+        Vertex node1 = i.next();
+        RepresentativeEdge edge = new RepresentativeEdge(node0, node1);
+        Membership mem = new Membership();
+        mem.setMembers(members);
+        ctx.write(mem, edge);
+      }
 
-	public static class SimplifyGraphReducer extends
-	    Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+    }
+  }
 
-		@Override
-		public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-		    Context ctx) throws InterruptedException, IOException {
+  public static class SimplifyGraphReducer extends
+          Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
 
-			Map<RepresentativeEdge, RepresentativeEdge> edges = new HashMap<RepresentativeEdge, RepresentativeEdge>();
-			for (RepresentativeEdge edge : values) {
-				RepresentativeEdge prev = edges.get(edge);
-				if (prev != null) {
-					// TODO implement aggregation
-				}
-				edges.put(edge, edge);
-			}
-			for (RepresentativeEdge edge : edges.values()) {
-				ctx.write(key, edge);
-			}
-		}
+    @Override
+    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+            Context ctx) throws InterruptedException, IOException {
 
-	}
-
+      Map<RepresentativeEdge, RepresentativeEdge> edges =
+              new HashMap<RepresentativeEdge, RepresentativeEdge>();
+      for (RepresentativeEdge edge : values) {
+        RepresentativeEdge prev = edges.get(edge);
+        if (prev != null) {
+          // TODO implement aggregation
+        }
+        edges.put(edge, edge);
+      }
+      for (RepresentativeEdge edge : edges.values()) {
+        ctx.write(key, edge);
+      }
+    }
+  }
 }

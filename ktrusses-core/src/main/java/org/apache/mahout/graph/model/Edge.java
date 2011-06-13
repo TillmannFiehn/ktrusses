@@ -20,12 +20,12 @@ import org.apache.hadoop.io.Writable;
 /**
  *
  */
+
 public abstract class Edge implements Writable {
 
-	@Override
-	public abstract boolean equals(Object o);
+  @Override
+  public abstract boolean equals(Object o);
 
-	@Override
-	public abstract int hashCode();
-
+  @Override
+  public abstract int hashCode();
 }

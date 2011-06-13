@@ -26,79 +26,76 @@ import org.apache.mahout.graph.model.Vertex;
 
 public class AugmentGraphWithDegrees {
 
-	public static class ScatterEdges extends
-	    Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
+  public static class ScatterEdges extends
+          Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
 
-		@Override
-		public void map(Object key, RepresentativeEdge value, Context ctx)
-		    throws IOException, InterruptedException {
+    @Override
+    public void map(Object key, RepresentativeEdge value, Context ctx)
+            throws IOException, InterruptedException {
 
-			ctx.write(new Membership().addMember(value.getVertex0()), value);
-			ctx.write(new Membership().addMember(value.getVertex1()), value);
+      ctx.write(new Membership().addMember(value.getVertex0()), value);
+      ctx.write(new Membership().addMember(value.getVertex1()), value);
 
-		}
+    }
+  }
 
-	}
+  public static class SumDegrees extends
+          Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
 
-	public static class SumDegrees extends
-	    Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+    @Override
+    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+            Context ctx) throws IOException, InterruptedException {
+      long degree = 0;
+      Iterator<RepresentativeEdge> i = values.iterator();
+      while (i.hasNext()) {
+        i.next();
+        degree++;
+      }
 
-		@Override
-		public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-		    Context ctx) throws IOException, InterruptedException {
-			long degree = 0;
-			Iterator<RepresentativeEdge> i = values.iterator();
-			while (i.hasNext()) {
-				i.next();
-				degree++;
-			}
+      Vertex v = key.getMembers().iterator().next();
 
-			Vertex v = key.getMembers().iterator().next();
+      Iterator<RepresentativeEdge> j = values.iterator();
+      while (j.hasNext()) {
+        RepresentativeEdge edge = j.next();
+        edge.setDegree(v, degree);
+        ctx.write(
+                new Membership().addMember(edge.getVertex0()).addMember(
+                edge.getVertex1()), edge);
+      }
 
-			Iterator<RepresentativeEdge> j = values.iterator();
-			while (j.hasNext()) {
-				RepresentativeEdge edge = j.next();
-				edge.setDegree(v, degree);
-				ctx.write(
-				    new Membership().addMember(edge.getVertex0()).addMember(
-				        edge.getVertex1()), edge);
-			}
+    }
+  }
 
-		}
-	}
+  public static class JoinDegrees extends
+          Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
 
-	public static class JoinDegrees extends
-	    Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+    @Override
+    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+            Context ctx) throws IOException, InterruptedException {
+      long d0 = Integer.MIN_VALUE;
+      long d1 = Integer.MIN_VALUE;
+      for (RepresentativeEdge edge : values) {
 
-		@Override
-		public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-		    Context ctx) throws IOException, InterruptedException {
-			long d0 = Integer.MIN_VALUE;
-			long d1 = Integer.MIN_VALUE;
-			for (RepresentativeEdge edge : values) {
+        if (d0 == Integer.MIN_VALUE) {
+          Vertex v = edge.getVertex0();
+          d0 = edge.getDegree(v);
+        }
 
-				if (d0 == Integer.MIN_VALUE) {
-					Vertex v = edge.getVertex0();
-					d0 = edge.getDegree(v);
-				}
+        if (d1 == Integer.MIN_VALUE) {
+          Vertex v = edge.getVertex1();
+          d0 = edge.getDegree(v);
+        }
 
-				if (d1 == Integer.MIN_VALUE) {
-					Vertex v = edge.getVertex1();
-					d0 = edge.getDegree(v);
-				}
+      }
 
-			}
+      RepresentativeEdge edge = values.iterator().next();
 
-			RepresentativeEdge edge = values.iterator().next();
+      Vertex v0 = edge.getVertex0();
+      edge.setDegree(v0, d0);
+      Vertex v1 = edge.getVertex1();
+      edge.setDegree(v1, d1);
 
-			Vertex v0 = edge.getVertex0();
-			edge.setDegree(v0, d0);
-			Vertex v1 = edge.getVertex1();
-			edge.setDegree(v1, d1);
-
-			ctx.write(key, edge);
-		}
-
-	}
-
+      ctx.write(key, edge);
+    }
+  }
 }

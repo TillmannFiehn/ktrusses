@@ -23,22 +23,19 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class Triangle implements WritableComparable<Triangle> {
 
-	@Override
-	public void write(DataOutput out) throws IOException {
-		// TODO Auto-generated method stub
+  @Override
+  public void write(DataOutput out) throws IOException {
+    // TODO Auto-generated method stub
+  }
 
-	}
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    // TODO Auto-generated method stub
+  }
 
-	@Override
-	public void readFields(DataInput in) throws IOException {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public int compareTo(Triangle o) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
+  @Override
+  public int compareTo(Triangle o) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
 }

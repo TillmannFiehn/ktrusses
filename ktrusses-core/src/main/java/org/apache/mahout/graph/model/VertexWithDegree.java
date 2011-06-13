@@ -15,45 +15,42 @@
 
 package org.apache.mahout.graph.model;
 
-
-
 public class VertexWithDegree implements Comparable<VertexWithDegree> {
 
-	private long d;
-	private Vertex v;
+  private long d;
+  private Vertex v;
 
-	public VertexWithDegree(Vertex v, long d) {
-		this.d = d;
-		this.v = v;
-	}
-
-	@Override
-	public int compareTo(VertexWithDegree o) {
-		int c = new Long(d).compareTo(new Long(o.d));
-		if (c == 0) {
-			c = v.compareTo(o.v);
-		}
-		return c;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof VertexWithDegree) {
-			int c = compareTo((VertexWithDegree) o);
-			return c == 0;
-		} else if (o instanceof Vertex) {
-			return ((Vertex) o).equals(this);
-		} else {
-			return false;
-		}
-	}
-
-	public Vertex getVertex() {
-	  return v;
+  public VertexWithDegree(Vertex v, long d) {
+    this.d = d;
+    this.v = v;
   }
 
-	public long getDegree() {
-	  return d;
+  @Override
+  public int compareTo(VertexWithDegree o) {
+    int c = new Long(d).compareTo(new Long(o.d));
+    if (c == 0) {
+      c = v.compareTo(o.v);
+    }
+    return c;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof VertexWithDegree) {
+      int c = compareTo((VertexWithDegree) o);
+      return c == 0;
+    } else if (o instanceof Vertex) {
+      return ((Vertex) o).equals(this);
+    } else {
+      return false;
+    }
+  }
+
+  public Vertex getVertex() {
+    return v;
+  }
+
+  public long getDegree() {
+    return d;
+  }
 }

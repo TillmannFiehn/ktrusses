@@ -22,17 +22,16 @@ import org.apache.hadoop.io.Text;
 
 public class SimpleParser implements Parser {
 
-	@Override
-	public Vector<Vertex> parse(Text description) {
-		String[] splits = description.toString().split("\t");
-		TreeSet<Vertex> set = new TreeSet<Vertex>();
-		for(String s : splits) {
-			final long d = Long.parseLong(s);
-			Vertex v = new Vertex(d);		
-			set.add(v);
-		}
-		Vector<Vertex> vec = new Vector<Vertex>(set);
-		return vec;
-	}
-
+  @Override
+  public Vector<Vertex> parse(Text description) {
+    String[] splits = description.toString().split("\t");
+    TreeSet<Vertex> set = new TreeSet<Vertex>();
+    for (String s : splits) {
+      final long d = Long.parseLong(s);
+      Vertex v = new Vertex(d);
+      set.add(v);
+    }
+    Vector<Vertex> vec = new Vector<Vertex>(set);
+    return vec;
+  }
 }

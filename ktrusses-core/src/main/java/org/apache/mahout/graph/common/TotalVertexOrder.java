@@ -25,34 +25,33 @@ import org.apache.mahout.graph.model.VertexWithDegree;
 
 public class TotalVertexOrder implements Comparator<VertexWithDegree> {
 
-	private static final TotalVertexOrder order = new TotalVertexOrder();
+  private static final TotalVertexOrder order = new TotalVertexOrder();
 
-	public static TotalVertexOrder instance() {
-		return order;
-	}
+  public static TotalVertexOrder instance() {
+    return order;
+  }
 
-	@Override
-	public int compare(VertexWithDegree v, VertexWithDegree w) {
-		int c = 0;
-		if (v == null && w == null) {
-			c = 0;
-		} else if (v == null && w != null) {
-			c = Integer.MIN_VALUE;
-		} else if (v != null && w == null) {
-			c = Integer.MAX_VALUE;
-		} else {
-			c = v.compareTo(w);
-		}
-		return c;
-	}
+  @Override
+  public int compare(VertexWithDegree v, VertexWithDegree w) {
+    int c = 0;
+    if (v == null && w == null) {
+      c = 0;
+    } else if (v == null && w != null) {
+      c = Integer.MIN_VALUE;
+    } else if (v != null && w == null) {
+      c = Integer.MAX_VALUE;
+    } else {
+      c = v.compareTo(w);
+    }
+    return c;
+  }
 
-	public static Set<VertexWithDegree> getOrdered(RepresentativeEdge edge) {
-		Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>();
-		Vertex v0 = edge.getVertex0();
-		vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
-		Vertex v1 = edge.getVertex1();
-		vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
-		return vertices;
-	}
-
+  public static Set<VertexWithDegree> getOrdered(RepresentativeEdge edge) {
+    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>();
+    Vertex v0 = edge.getVertex0();
+    vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
+    Vertex v1 = edge.getVertex1();
+    vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
+    return vertices;
+  }
 }

@@ -30,76 +30,74 @@ import org.apache.mahout.graph.model.VertexWithDegree;
 
 public class EnumerateTriangles {
 
-	public static class ScatterEdgesToLowerDegreeVertex extends
-	    Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
+  public static class ScatterEdgesToLowerDegreeVertex extends
+          Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
 
-		@Override
-		public void map(Object key, RepresentativeEdge value, Context ctx)
-		    throws IOException, InterruptedException {
+    @Override
+    public void map(Object key, RepresentativeEdge value, Context ctx)
+            throws IOException, InterruptedException {
 
-			Set<VertexWithDegree> order = TotalVertexOrder.getOrdered(value);
-			VertexWithDegree lower = order.iterator().next();
-			if (lower.getDegree() > 1) {
-				ctx.write(new Membership().addMember(lower.getVertex()), value);
-			}
-		}
+      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered(value);
+      VertexWithDegree lower = order.iterator().next();
+      if (lower.getDegree() > 1) {
+        ctx.write(new Membership().addMember(lower.getVertex()), value);
+      }
+    }
+  }
 
-	}
+  public static class BuildOpenTriads extends
+          Reducer<Membership, RepresentativeEdge, Membership, OpenTriad> {
 
-	public static class BuildOpenTriads extends
-	    Reducer<Membership, RepresentativeEdge, Membership, OpenTriad> {
+    @Override
+    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+            Context ctx) throws IOException, InterruptedException {
 
-		@Override
-		public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-		    Context ctx) throws IOException, InterruptedException {
+      Vertex lower = key.getMembers().iterator().next();
 
-			Vertex lower = key.getMembers().iterator().next();
+      for (RepresentativeEdge outer : values) { // nested loop join
+        for (RepresentativeEdge inner : values) {
+          if (!outer.equals(inner)) {
+            Set<VertexWithDegree> outerSet = TotalVertexOrder.getOrdered(outer);
+            Set<VertexWithDegree> innerSet = TotalVertexOrder.getOrdered(inner);
+            outerSet.remove(lower); // VwD equals V if vertices equal
+            innerSet.remove(lower); // VwD equals V if vertices equal
+            // build the new key
+            Membership newkey = new Membership();
+            newkey.addMember(outerSet.iterator().next().getVertex());
+            newkey.addMember(innerSet.iterator().next().getVertex());
 
-			for (RepresentativeEdge outer : values) { // nested loop join
-				for (RepresentativeEdge inner : values) {
-					if (!outer.equals(inner)) {
-						Set<VertexWithDegree> outerSet = TotalVertexOrder.getOrdered(outer);
-						Set<VertexWithDegree> innerSet = TotalVertexOrder.getOrdered(inner);
-						outerSet.remove(lower); // VwD equals V if vertices equal
-						innerSet.remove(lower); // VwD equals V if vertices equal
-						// build the new key
-						Membership newkey = new Membership();
-						newkey.addMember(outerSet.iterator().next().getVertex());
-						newkey.addMember(innerSet.iterator().next().getVertex());
+            OpenTriad newvalue = new OpenTriad();
+            newvalue.setApex(lower);
+            newvalue.addEdge(outer);
+            newvalue.addEdge(inner);
+            ctx.write(newkey, newvalue);
+          }
+        }
+      }
+    }
+  }
 
-						OpenTriad newvalue = new OpenTriad();
-						newvalue.setApex(lower);
-						newvalue.addEdge(outer);
-						newvalue.addEdge(inner);
-						ctx.write(newkey, newvalue);
-					}
-				}
-			}
-		}
-	}
+  public static class BuildTriangles extends
+          Reducer<Membership, Object, Membership, Triangle> {
 
-
-	public static class BuildTriangles extends
-	    Reducer<Membership, Object, Membership, Triangle> {
-
-		@Override
-		public void reduce(Membership key, Iterable<Object> values,
-		    Context ctx) throws IOException, InterruptedException {
-			Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
-			Set<OpenTriad> triads = new TreeSet<OpenTriad>();
-			for(Object value : values) { // build sets with sperate inputs
-				if (value instanceof OpenTriad) {
-					triads.add((OpenTriad) value);
-				}
-				if (value instanceof RepresentativeEdge) {
-					edges.add((RepresentativeEdge) value);
-				}
-			}
-			for(OpenTriad triad : triads) { //nested loop join
-				for(RepresentativeEdge edge : edges) {
-					//TODO implement the triangles
-				}
-			}
-		}
-	}
+    @Override
+    public void reduce(Membership key, Iterable<Object> values,
+            Context ctx) throws IOException, InterruptedException {
+      Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
+      Set<OpenTriad> triads = new TreeSet<OpenTriad>();
+      for (Object value : values) { // build sets with sperate inputs
+        if (value instanceof OpenTriad) {
+          triads.add((OpenTriad) value);
+        }
+        if (value instanceof RepresentativeEdge) {
+          edges.add((RepresentativeEdge) value);
+        }
+      }
+      for (OpenTriad triad : triads) { //nested loop join
+        for (RepresentativeEdge edge : edges) {
+          //TODO implement the triangles
+        }
+      }
+    }
+  }
 }
