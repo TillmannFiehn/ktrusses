@@ -24,7 +24,7 @@ public class SimpleParser implements Parser {
 
 	@Override
 	public Vector<Vertex> parse(Text description) {
-		String[] splits = description.toString().split("\t");
+		String[] splits = description.toString().split(",");
 		TreeSet<Vertex> set = new TreeSet<Vertex>();
 		for(String s : splits) {
 			final long d = Long.parseLong(s);

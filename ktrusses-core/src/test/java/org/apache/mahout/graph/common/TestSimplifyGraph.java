@@ -49,7 +49,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 			    conf, writer);
 			simplifier.setup(ctx);
 
-			String[] file = new String[] { "1\t1", "1\t2", "2\t1", "2\t2", };
+			String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
 
 			for (String line : file) {
 				simplifier.map(null, new Text(line), ctx);
@@ -96,7 +96,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 			    conf, writer);
 			simplifier.setup(ctxm);
 
-			String[] file = new String[] { "1\t1", "1\t2", "2\t1", "2\t2", };
+			String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
 
 			for (String line : file) {
 				simplifier.map(null, new Text(line), ctxm);
