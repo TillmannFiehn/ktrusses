@@ -44,7 +44,7 @@ public class SimplifyGraph {
     public void setup(Context ctx) {
       Configuration conf = ctx.getConfiguration();
       String classname = conf.get(Parser.class.getCanonicalName());
-      try {
+      if( classname!=null ) try {
         @SuppressWarnings("unchecked")
         Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
         parser = (Parser) parserclass.newInstance();
