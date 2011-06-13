@@ -17,15 +17,22 @@
 
 package org.apache.mahout.graph.common;
 
+import com.google.common.io.Resources;
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.common.iterator.FileLineIterable;
+import org.apache.mahout.common.iterator.StringRecordIterator;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
@@ -148,4 +155,27 @@ public class TestSimplifyGraph extends MahoutTestCase {
     }
 
   }
+
+  @Test
+  public void testSimplifyGraphJob() throws Exception {
+    File inputFile = new File(Resources.getResource("simplifytest.csv").toURI());
+    assert(inputFile.canRead());
+    File outputDir = getTestTempDir("simplifytest-out");
+    outputDir.delete();
+    Configuration conf = new Configuration();
+    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
+    simplifyGraphJob.setConf(conf);
+    simplifyGraphJob.run(new String[]{"--input", inputFile.getAbsolutePath(), "--output", outputDir.getAbsolutePath()});
+    //Map<String, Integer> counts = getCounts(new File(outputDir, "part-r-00000"));
+    /*assertEquals(new Integer(3), counts.get("ring"));
+    assertEquals(new Integer(2), counts.get("all"));
+    assertEquals(new Integer(1), counts.get("darkness"));
+    assertFalse(counts.containsKey("the"));*/
+    /*try {
+      Thread.sleep(50000);
+    } catch (InterruptedException e){}*/
+
+
+  }
+
 }
