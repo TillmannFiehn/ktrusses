@@ -24,11 +24,25 @@ import java.util.Vector;
 
 import org.apache.hadoop.io.WritableComparable;
 
+/**
+ * Data type for open triads which are an intermediate result on triangle
+ * enumeration.
+ * 
+ */
 public class OpenTriad implements WritableComparable<OpenTriad> {
 
+  /**
+   * the apex of the instance
+   */
   private Vertex apex;
+  /**
+   * the edges of the instance
+   */
   protected Vector<RepresentativeEdge> edges;
 
+  /**
+   * Construct an open triad
+   */
   public OpenTriad() {
     edges = new Vector<RepresentativeEdge>(2);
   }
@@ -58,18 +72,40 @@ public class OpenTriad implements WritableComparable<OpenTriad> {
 
   }
 
+  /**
+   * Set the apex of the triad.
+   * 
+   * @param v
+   *          The vertex the apex is to be set to
+   */
   public void setApex(Vertex v) {
     apex = v;
   }
 
+  /**
+   * Add an edge to the edges
+   * 
+   * @param edge
+   *          The edge to be added
+   */
   public void addEdge(RepresentativeEdge edge) {
     edges.add(edge);
   }
 
+  /**
+   * Get the apex of the triad
+   * 
+   * @return the apex of this instance
+   */
   public Vertex getApex() {
     return apex;
   }
 
+  /**
+   * Get the edges that were set to the instance.
+   * 
+   * @return a vector of edges or an empty vector if no edges were set
+   */
   public Vector<RepresentativeEdge> getEdges() {
     return edges;
   }
@@ -78,8 +114,8 @@ public class OpenTriad implements WritableComparable<OpenTriad> {
   public boolean equals(Object o) {
     if (o instanceof OpenTriad) {
       OpenTriad t = (OpenTriad) o;
-      //FIXME implement this
-      return apex.equals(t.apex);
+      // TODO check if this holds
+      return apex.equals(t.apex) && edges.equals(t.edges);
     }
     return false;
   }

@@ -20,9 +20,9 @@ package org.apache.mahout.graph.model;
 import org.apache.hadoop.io.Writable;
 
 /**
- *
+ * Abstract super class for all edges. Forcing the edges to overwrite {@link
+ * equals(Object)} and {@link hashCode()}.
  */
-
 public abstract class Edge implements Writable {
 
   @Override
