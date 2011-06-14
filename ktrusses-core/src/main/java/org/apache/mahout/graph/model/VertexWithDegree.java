@@ -17,30 +17,57 @@
 
 package org.apache.mahout.graph.model;
 
+/**
+ * Container for a vertex augmented with a degree. The degree is interpreted as
+ * the count of edges that start or end at the vertex.
+ * 
+ */
 public class VertexWithDegree implements Comparable<VertexWithDegree> {
 
+  /**
+   * the degree of this instance
+   */
   private long d;
+  /**
+   * the vertex of this instance
+   */
   private Vertex v;
 
+  /**
+   * Create an instance of an augmented vertex.
+   * 
+   * @param v
+   *          The vertex to be augmented
+   * @param d
+   *          The degree to be the augmentation
+   */
   public VertexWithDegree(Vertex v, long d) {
     this.d = d;
     this.v = v;
   }
 
+  /**
+   * Compares the degree of this instance to the other and returns a negative
+   * number if this instance's degree is lower, 0 if the degrees equal and a
+   * positive number if this instance's degree is bigger than the other's.
+   */
   @Override
   public int compareTo(VertexWithDegree o) {
     int c = new Long(d).compareTo(new Long(o.d));
-    if (c == 0) {
-      c = v.compareTo(o.v);
-    }
     return c;
   }
 
+  /**
+   * This method returns true if the other instance is either a
+   * {@link VertexWithDegree } with degree equal to this instance and vertex
+   * equal to this instance's vertex or other instance is a {@link Vertex} and
+   * equals this instance's vertex.
+   */
   @Override
   public boolean equals(Object o) {
     if (o instanceof VertexWithDegree) {
       int c = compareTo((VertexWithDegree) o);
-      return c == 0;
+      return c == 0 && v.equals(((VertexWithDegree) o).v);
     } else if (o instanceof Vertex) {
       return ((Vertex) o).equals(this);
     } else {
@@ -48,10 +75,20 @@ public class VertexWithDegree implements Comparable<VertexWithDegree> {
     }
   }
 
+  /**
+   * Getter for the <code>v</code> attribute.
+   * 
+   * @return This instance's vertex
+   */
   public Vertex getVertex() {
     return v;
   }
 
+  /**
+   * Getter for the <code>d</code> attribute
+   * 
+   * @return The degree of this instance
+   */
   public long getDegree() {
     return d;
   }
