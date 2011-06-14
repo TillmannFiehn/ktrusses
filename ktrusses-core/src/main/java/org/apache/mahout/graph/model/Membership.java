@@ -40,14 +40,30 @@ import org.apache.hadoop.io.WritableComparable;
  */
 public class Membership implements WritableComparable<Membership> {
 
-  private Collection<Vertex> members;
-
+  /**
+   * Factory method that is equivalent to the {@link readFields(DataInput)}
+   * method.
+   * 
+   * @param in
+   *          the sequence file data input where the next instance is serialized
+   * @return a deserialized instance
+   * @throws IOException
+   *           if the sequence file operation throws this exception
+   */
   public static Membership read(DataInput in) throws IOException {
     Membership read = new Membership();
     read.readFields(in);
     return read;
   }
 
+  /**
+   * membership collection
+   */
+  private Collection<Vertex> members;
+
+  /**
+   * Constructs an empty {@link Membership} instance
+   */
   public Membership() {
   }
 
@@ -82,9 +98,10 @@ public class Membership implements WritableComparable<Membership> {
   }
 
   /**
-   * Compares this instance to another. This method return 0 if both memberships 
-   * are null or both memberships are empty. It returns 0 if both memberships 
-   * contain the same vertices returned in the same order by there membership collection objects.
+   * Compares this instance to another. This method return 0 if both memberships
+   * are null or both memberships are empty. It returns 0 if both memberships
+   * contain the same vertices returned in the same order by there membership
+   * collection objects.
    */
   @Override
   public int compareTo(Membership o) {
@@ -136,9 +153,10 @@ public class Membership implements WritableComparable<Membership> {
   }
 
   /**
-   * Sets the membership list to the membership <code>WritableComparable</code>.
-   * The <code>Collection</code> will be used directly. This way it is possible
-   * to overwrite the default ordered set semantic of {@link Membership}.
+   * Sets the membership collection to the membership
+   * <code>WritableComparable</code>. The <code>Collection</code> will be used
+   * directly. This way it is possible to overwrite the default ordered set
+   * semantic of {@link Membership}.
    * 
    * @param members
    *          the collection to be used to contain the objects
@@ -159,8 +177,9 @@ public class Membership implements WritableComparable<Membership> {
 
   /**
    * Set a member to the membership collection. If this is the first call and no
-   * membership collection had been set via {@link Membership#setMembers(Collection)} an ordered
-   * set will be created to contain the member.
+   * membership collection had been set via
+   * {@link Membership#setMembers(Collection)} an ordered set will be created to
+   * contain the member.
    * 
    * @param m
    * @return this for convenience of chained invocation
@@ -173,6 +192,10 @@ public class Membership implements WritableComparable<Membership> {
     return this;
   }
 
+  /**
+   * Equals another {@link Membership} if both contain the same vertices in the
+   * same order.
+   */
   @Override
   public boolean equals(Object o) {
     if (o instanceof Membership) {
@@ -182,8 +205,8 @@ public class Membership implements WritableComparable<Membership> {
     }
   }
 
-  /** 
-   * The hash code returned will be a product of all hash codes of all vertices. 
+  /**
+   * The hash code returned will be a product of all hash codes of all vertices.
    */
   @Override
   public int hashCode() {

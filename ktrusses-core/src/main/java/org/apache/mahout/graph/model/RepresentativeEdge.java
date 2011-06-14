@@ -22,19 +22,36 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- *
+ * A representative edge to be operated on in several graph algorithms.
  */
 public class RepresentativeEdge extends Edge {
 
+  /**
+   * the vertices
+   */
   protected Vertex v0, v1;
+  /**
+   * its degrees
+   */
   private long d0 = Integer.MIN_VALUE, d1 = Integer.MIN_VALUE;
 
+  /**
+   * Construct an empty instance
+   */
   public RepresentativeEdge() {
   }
 
-  public RepresentativeEdge(Vertex node0, Vertex node1) {
-    this.v0 = node0;
-    this.v1 = node1;
+  /**
+   * Constructs a edge between the stated vertices.
+   * 
+   * @param v0
+   *          The first vertex
+   * @param v1
+   *          The second vertex
+   */
+  public RepresentativeEdge(Vertex v0, Vertex v1) {
+    this.v0 = v0;
+    this.v1 = v1;
   }
 
   @Override
@@ -58,6 +75,10 @@ public class RepresentativeEdge extends Edge {
 
   }
 
+  /**
+   * Returns true if the other instance is an edge containing the same vertices
+   * in same order.
+   */
   @Override
   public boolean equals(Object o) {
     if (o instanceof RepresentativeEdge) {
@@ -69,27 +90,60 @@ public class RepresentativeEdge extends Edge {
     return false;
   }
 
+  /**
+   * Set the first vertex to <code>v</code>
+   * 
+   * @param v
+   *          The vertex the first attribute it to be set to
+   */
   public void setVertex0(Vertex v) {
     v0 = v;
   }
 
+  /**
+   * Set the second vertex to <code>v</code>
+   * 
+   * @param v
+   *          The vertex the second attribute it to be set to
+   */
   public void setVertex1(Vertex v) {
     v1 = v;
   }
 
+  /**
+   * Get the first vertex of this edge.
+   * 
+   * @return The first vertex
+   */
   public Vertex getVertex0() {
     return v0;
   }
 
+  /**
+   * Get the second vertex of this edge.
+   * 
+   * @return The second vertex
+   */
   public Vertex getVertex1() {
     return v1;
   }
 
+  /**
+   * The hash code is the product of the instance's vertices ids.
+   */
   @Override
   public int hashCode() {
     return 1 * v0.hashCode() * v1.hashCode();
   }
 
+  /**
+   * Augment this edge with degree information for the vertex <code>v</code>
+   * 
+   * @param v
+   *          The vertex to be augmented.
+   * @param degree
+   *          The augmentation value degree
+   */
   public void setDegree(Vertex v, Long degree) {
     if (v0.equals(v)) {
       d0 = degree;
@@ -100,7 +154,16 @@ public class RepresentativeEdge extends Edge {
     }
   }
 
-  public long getDegree(Vertex v) {
+  /**
+   * Get a degree for a vertex of this edge
+   * 
+   * @param v
+   *          the vertex which is the augmented degree to be looked up for
+   * @return the degree if it has been augmented before
+   * @throws IllegalArgumentException
+   *           if the vertex <code>v</code> does not belong to this edge
+   */
+  public long getDegree(Vertex v) throws IllegalArgumentException {
     if (v0.equals(v)) {
       return d0;
     } else if (v1.equals(v)) {

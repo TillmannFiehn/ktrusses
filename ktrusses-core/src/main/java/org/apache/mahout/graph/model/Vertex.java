@@ -23,6 +23,10 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.WritableComparable;
 
+/**
+ * Class representing a vertex in the graph to be analyzed.
+ * 
+ */
 public class Vertex implements WritableComparable<Vertex> {
 
   public static Vertex read(DataInput in) throws IOException {
@@ -35,11 +39,24 @@ public class Vertex implements WritableComparable<Vertex> {
   public void readFields(DataInput in) throws IOException {
     this.id = in.readLong();
   }
+
+  /**
+   * the id to identify this instance
+   */
   private long id;
 
+  /**
+   * Constructs an empty vertex
+   */
   public Vertex() {
   }
 
+  /**
+   * Construct a vertex with <code>id</code> set to parameter <code>id</code>
+   * 
+   * @param id
+   *          The Vertex's id
+   */
   public Vertex(long id) {
     this.id = id;
   }
@@ -49,19 +66,40 @@ public class Vertex implements WritableComparable<Vertex> {
     out.writeLong(this.id);
   }
 
+  /**
+   * Set the <code>id</code> to parameter <code>id</code>
+   * 
+   * @param id
+   *          The <code>id</code> to apply to this instance
+   */
   public void setId(long id) {
     this.id = id;
   }
 
+  /**
+   * Get the id of the vertex
+   * 
+   * @return The id of the vertex
+   */
   public long getId() {
     return this.id;
   }
 
+  /**
+   * Compares this instance to another according to the <code>id</code>
+   * attribute.
+   */
   @Override
   public int compareTo(Vertex o) {
     return new Long(getId()).compareTo(new Long(o.getId()));
   }
 
+  /**
+   * Compares this instance to another according to the <code>id</code>
+   * attribute. The other instance can be a {@link VertexWithDegree} in which
+   * case the <code>id</code> is compared as well. Different degrees are
+   * silently ignored.
+   */
   @Override
   public boolean equals(Object o) {
     if (o instanceof Vertex) {
@@ -73,6 +111,9 @@ public class Vertex implements WritableComparable<Vertex> {
     }
   }
 
+  /**
+   * The hash code the <code>id</code> attribute
+   */
   @Override
   public int hashCode() {
     return (int) id;
