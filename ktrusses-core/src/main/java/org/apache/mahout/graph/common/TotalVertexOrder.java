@@ -25,14 +25,30 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
 
+/**
+ * {@link Comparator} class to give a total ordering on augmented vertices. Use
+ * the degree order and natural ordering of vertices as a tie-breaker. 
+ */
 public class TotalVertexOrder implements Comparator<VertexWithDegree> {
 
   private static final TotalVertexOrder order = new TotalVertexOrder();
 
+  private TotalVertexOrder() {
+  }
+
+  /**
+   * Singleton usage proposed. Instances are stateless anyway.
+   * 
+   * @return
+   */
   public static TotalVertexOrder instance() {
     return order;
   }
 
+  /**
+   * Orders {@link VertexWithDegree} according to their natural order and uses
+   * the {@link Vertex} natural order as tie-breaker.
+   */
   @Override
   public int compare(VertexWithDegree v, VertexWithDegree w) {
     int c = 0;
@@ -44,12 +60,23 @@ public class TotalVertexOrder implements Comparator<VertexWithDegree> {
       c = Integer.MAX_VALUE;
     } else {
       c = v.compareTo(w);
+      if (c == 0) {
+        c = v.getVertex().compareTo(w.getVertex());
+      }
     }
     return c;
   }
 
+  /**
+   * Return the vertices of a {@link RepresentativeEdge} as an ordered set
+   * according to the ordering of this class.
+   * 
+   * @param edge
+   *          The edge to get the vertices of
+   * @return An ordered set of vertices
+   */
   public static Set<VertexWithDegree> getOrdered(RepresentativeEdge edge) {
-    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>();
+    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>(instance());
     Vertex v0 = edge.getVertex0();
     vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
     Vertex v1 = edge.getVertex1();
