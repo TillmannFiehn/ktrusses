@@ -118,4 +118,9 @@ public class Vertex implements WritableComparable<Vertex> {
   public int hashCode() {
     return (int) id;
   }
+  
+  @Override
+  public String toString() {
+    return new Long(id).toString();
+  }
 }

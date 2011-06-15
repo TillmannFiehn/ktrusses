@@ -172,4 +172,9 @@ public class RepresentativeEdge extends Edge {
       throw new IllegalArgumentException();
     }
   }
+  
+  @Override
+  public String toString() {
+    return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(), (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(), (d1 >= 0 ? new Long(d1).toString() : "-"));
+  }
 }

@@ -222,4 +222,9 @@ public class Membership implements WritableComparable<Membership> {
     }
     return hash;
   }
+  
+  @Override
+  public String toString() {
+    return members.toString();
+  }
 }

@@ -37,8 +37,6 @@ import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
-import org.apache.mahout.common.iterator.FileLineIterable;
-import org.apache.mahout.common.iterator.StringRecordIterator;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
@@ -89,7 +87,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
       RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
               2L));
-
+      
       assertTrue(edges.remove(e));
       assertTrue(edges.remove(e));
 
@@ -186,6 +184,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
     while(r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
       RepresentativeEdge e = r.getCurrentValue();
+      System.out.println(String.format("Job returned %s binned under membership %s. Testing map...", e, m));
       assertEquals(e,edges.remove(m));
     }
     assertTrue(edges.isEmpty());
