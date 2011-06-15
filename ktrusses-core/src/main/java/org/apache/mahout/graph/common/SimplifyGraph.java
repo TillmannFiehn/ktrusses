@@ -33,10 +33,19 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
 
+/**
+ * Container for the {@link SimplifyGraphJob } mapper and reducer classes.
+ * 
+ */
 public class SimplifyGraph {
 
+  /**
+   * Bins edges by an ordered membership set. Scatters edges with at least two
+   * vertices in the membership set.
+   * 
+   */
   public static class SimplifyGraphMapper extends
-          Mapper<Object, Text, Membership, RepresentativeEdge> {
+      Mapper<Object, Text, Membership, RepresentativeEdge> {
 
     Parser parser;
 
@@ -44,20 +53,21 @@ public class SimplifyGraph {
     public void setup(Context ctx) {
       Configuration conf = ctx.getConfiguration();
       String classname = conf.get(Parser.class.getCanonicalName());
-      if( classname!=null ) try {
-        @SuppressWarnings("unchecked")
-        Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
-        parser = (Parser) parserclass.newInstance();
-      } catch (ClassNotFoundException e) {
-        e.printStackTrace();
-        // TODO log this error
-      } catch (InstantiationException e) {
-        // TODO log this error
-        e.printStackTrace();
-      } catch (IllegalAccessException e) {
-        // TODO log this error
-        e.printStackTrace();
-      }
+      if (classname != null)
+        try {
+          @SuppressWarnings("unchecked")
+          Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
+          parser = (Parser) parserclass.newInstance();
+        } catch (ClassNotFoundException e) {
+          e.printStackTrace();
+          // TODO log this error
+        } catch (InstantiationException e) {
+          // TODO log this error
+          e.printStackTrace();
+        } catch (IllegalAccessException e) {
+          // TODO log this error
+          e.printStackTrace();
+        }
       if (parser == null) {
         parser = new SimpleParser();
       }
@@ -66,10 +76,10 @@ public class SimplifyGraph {
 
     @Override
     public void map(Object key, Text description, Context ctx)
-            throws IOException, InterruptedException {
+        throws IOException, InterruptedException {
 
       Vector<Vertex> members = parser.parse(description);
-      if (members.size() > 1) {
+      if (members != null && members.size() > 1) {
         Iterator<Vertex> i = members.iterator();
         Vertex node0 = i.next();
         Vertex node1 = i.next();
@@ -82,15 +92,17 @@ public class SimplifyGraph {
     }
   }
 
+  /**
+   * Removes duplicate edges.
+   */
   public static class SimplifyGraphReducer extends
-          Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
 
     @Override
     public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-            Context ctx) throws InterruptedException, IOException {
+        Context ctx) throws InterruptedException, IOException {
 
-      Map<RepresentativeEdge, RepresentativeEdge> edges =
-              new HashMap<RepresentativeEdge, RepresentativeEdge>();
+      Map<RepresentativeEdge, RepresentativeEdge> edges = new HashMap<RepresentativeEdge, RepresentativeEdge>();
       for (RepresentativeEdge edge : values) {
         RepresentativeEdge prev = edges.get(edge);
         if (prev != null) {

@@ -18,8 +18,8 @@
 package org.apache.mahout.graph.components;
 
 /**
+ * Finds components of a graph.  
  *
  */
-
 public class FindComponentsJob {
 }

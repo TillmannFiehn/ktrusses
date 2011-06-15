@@ -18,8 +18,7 @@
 package org.apache.mahout.graph.components;
 
 /**
- *
+ * Find <code>k</code>-trusses in a graph.
  */
-
 public class FindKTrussesJob {
 }
