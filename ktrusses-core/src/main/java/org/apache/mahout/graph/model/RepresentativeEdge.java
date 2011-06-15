@@ -24,8 +24,23 @@ import java.io.IOException;
 /**
  * A representative edge to be operated on in several graph algorithms.
  */
-public class RepresentativeEdge extends Edge {
+public class RepresentativeEdge extends Edge implements Comparable<RepresentativeEdge> {
 
+  /**
+   * Make a deep copy of the stated object.
+   * 
+   * @param orig
+   *          The object to be copied
+   * @return A deep copy
+   */
+  public static RepresentativeEdge duplicate(RepresentativeEdge orig) {
+    RepresentativeEdge dup = new RepresentativeEdge();
+    dup.d0 = orig.d0;
+    dup.d1 = orig.d1;
+    dup.v0 = Vertex.duplicate(orig.v0);
+    dup.v1 = Vertex.duplicate(orig.v1);
+    return dup;
+  }
   /**
    * the vertices
    */
@@ -172,7 +187,7 @@ public class RepresentativeEdge extends Edge {
       throw new IllegalArgumentException();
     }
   }
-  
+    
   @Override
   public String toString() {
     return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(), (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(), (d1 >= 0 ? new Long(d1).toString() : "-"));

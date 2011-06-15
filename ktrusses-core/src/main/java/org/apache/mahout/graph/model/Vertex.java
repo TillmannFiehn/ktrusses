@@ -29,6 +29,19 @@ import org.apache.hadoop.io.WritableComparable;
  */
 public class Vertex implements WritableComparable<Vertex> {
 
+  /**
+   * Make a deep copy of the stated object.
+   * 
+   * @param orig
+   *          The object to be copied
+   * @return A deep copy
+   */
+  public static Vertex duplicate(Vertex orig) {
+    Vertex dup = new Vertex();
+    dup.id = orig.id;
+    return dup;
+  }
+  
   public static Vertex read(DataInput in) throws IOException {
     Vertex v = new Vertex();
     v.readFields(in);
@@ -123,4 +136,5 @@ public class Vertex implements WritableComparable<Vertex> {
   public String toString() {
     return new Long(id).toString();
   }
+
 }

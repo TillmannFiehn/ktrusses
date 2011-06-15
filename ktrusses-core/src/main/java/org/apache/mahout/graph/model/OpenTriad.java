@@ -32,6 +32,23 @@ import org.apache.hadoop.io.WritableComparable;
 public class OpenTriad implements WritableComparable<OpenTriad> {
 
   /**
+   * Make a deep copy of the stated object.
+   * 
+   * @param orig
+   *          The object to be copied
+   * @return A deep copy
+   */
+  public static OpenTriad duplicate(OpenTriad orig) {
+    OpenTriad dup = new OpenTriad();
+    dup.apex = Vertex.duplicate(orig.apex);
+    dup.edges = new Vector<RepresentativeEdge>(orig.edges.size());
+    for (RepresentativeEdge e : orig.edges) {
+      dup.edges.add(RepresentativeEdge.duplicate(e));
+    }
+    return null;
+  }
+
+  /**
    * the apex of the instance
    */
   private Vertex apex;
@@ -125,4 +142,5 @@ public class OpenTriad implements WritableComparable<OpenTriad> {
     // TODO Auto-generated method stub
     return 0;
   }
+
 }
