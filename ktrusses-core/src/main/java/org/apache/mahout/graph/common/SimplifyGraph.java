@@ -53,21 +53,20 @@ public class SimplifyGraph {
     public void setup(Context ctx) {
       Configuration conf = ctx.getConfiguration();
       String classname = conf.get(Parser.class.getCanonicalName());
-      if (classname != null)
-        try {
-          @SuppressWarnings("unchecked")
-          Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
-          parser = (Parser) parserclass.newInstance();
-        } catch (ClassNotFoundException e) {
-          e.printStackTrace();
-          // TODO log this error
-        } catch (InstantiationException e) {
-          // TODO log this error
-          e.printStackTrace();
-        } catch (IllegalAccessException e) {
-          // TODO log this error
-          e.printStackTrace();
-        }
+      if( classname!=null ) try {
+        @SuppressWarnings("unchecked")
+        Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
+        parser = (Parser) parserclass.newInstance();
+      } catch (ClassNotFoundException e) {
+        e.printStackTrace();
+        // TODO log this error
+      } catch (InstantiationException e) {
+        // TODO log this error
+        e.printStackTrace();
+      } catch (IllegalAccessException e) {
+        // TODO log this error
+        e.printStackTrace();
+      }
       if (parser == null) {
         parser = new SimpleParser();
       }

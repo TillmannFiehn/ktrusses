@@ -37,6 +37,8 @@ import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.common.iterator.FileLineIterable;
+import org.apache.mahout.common.iterator.StringRecordIterator;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
