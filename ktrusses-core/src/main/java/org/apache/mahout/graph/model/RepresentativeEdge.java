@@ -192,4 +192,14 @@ public class RepresentativeEdge extends Edge implements Comparable<Representativ
   public String toString() {
     return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(), (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(), (d1 >= 0 ? new Long(d1).toString() : "-"));
   }
+
+  /**
+   * Compares two edges by {@link Membership}
+   */
+  @Override
+  public int compareTo(RepresentativeEdge o) {
+    Membership i = new Membership().addMember(v0).addMember(v1);
+    Membership it = new Membership().addMember(o.v0).addMember(o.v1);
+    return i.compareTo(it);
+  }
 }

@@ -30,14 +30,21 @@ import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
 
+/**
+ * Container for the {@link EnumerateTrianglesJob } mapper and reducer classes.
+ */
 public class EnumerateTriangles {
 
+  /**
+   * Finds the lower degree vertex of an edge and emits key-value-pairs to bin
+   * under this lower degree vertex.
+   */
   public static class ScatterEdgesToLowerDegreeVertex extends
-          Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
 
     @Override
     public void map(Object key, RepresentativeEdge value, Context ctx)
-            throws IOException, InterruptedException {
+        throws IOException, InterruptedException {
 
       Set<VertexWithDegree> order = TotalVertexOrder.getOrdered(value);
       VertexWithDegree lower = order.iterator().next();
@@ -47,12 +54,18 @@ public class EnumerateTriangles {
     }
   }
 
+  /**
+   * Builds open triads from edges by pairwise joining the edges on the lower
+   * degree vertex which is the apex of the triad. Emits key-value pairs where
+   * the value is the triad and the key is the two outside vertices.
+   * 
+   */
   public static class BuildOpenTriads extends
-          Reducer<Membership, RepresentativeEdge, Membership, OpenTriad> {
+      Reducer<Membership, RepresentativeEdge, Membership, OpenTriad> {
 
     @Override
     public void reduce(Membership key, Iterable<RepresentativeEdge> values,
-            Context ctx) throws IOException, InterruptedException {
+        Context ctx) throws IOException, InterruptedException {
 
       Vertex lower = key.getMembers().iterator().next();
 
@@ -79,25 +92,36 @@ public class EnumerateTriangles {
     }
   }
 
+  /**
+   * Joins {@link RepresentativeEdge } and {@link OpenTriad} on the outside
+   * vertices of the triad.
+   */
   public static class BuildTriangles extends
-          Reducer<Membership, Object, Membership, Triangle> {
+      Reducer<Membership, Object, Membership, Triangle> {
 
     @Override
-    public void reduce(Membership key, Iterable<Object> values,
-            Context ctx) throws IOException, InterruptedException {
+    public void reduce(Membership key, Iterable<Object> values, Context ctx)
+        throws IOException, InterruptedException {
       Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
       Set<OpenTriad> triads = new TreeSet<OpenTriad>();
-      for (Object value : values) { // build sets with sperate inputs
+      // TODO avoid NLJ via a smart merging and partitioning of input keys
+      for (Object value : values) { // build sets with separate inputs
         if (value instanceof OpenTriad) {
-          triads.add((OpenTriad) value);
+          triads.add(OpenTriad.duplicate((OpenTriad) value));
         }
         if (value instanceof RepresentativeEdge) {
-          edges.add((RepresentativeEdge) value);
+          edges.add(RepresentativeEdge.duplicate((RepresentativeEdge) value));
         }
       }
-      for (OpenTriad triad : triads) { //nested loop join
+      for (OpenTriad triad : triads) { // nested loop join
         for (RepresentativeEdge edge : edges) {
-          //TODO implement the triangles
+          Triangle triangle = new Triangle();
+          triangle.getEdges().addAll(triad.getEdges());
+          triangle.addEdge(edge);
+          Membership m = new Membership().addMember(triad.getApex());
+          m.addMember(edge.getVertex0());
+          m.addMember(edge.getVertex1());
+          ctx.write(m, triangle);
         }
       }
     }
