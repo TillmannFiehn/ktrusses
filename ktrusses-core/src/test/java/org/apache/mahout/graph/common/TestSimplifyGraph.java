@@ -17,22 +17,26 @@
 
 package org.apache.mahout.graph.common;
 
-import com.google.common.io.Resources;
 import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Vector;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
-import org.apache.mahout.common.iterator.FileLineIterable;
-import org.apache.mahout.common.iterator.StringRecordIterator;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
@@ -41,6 +45,8 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
 import org.junit.Test;
+
+import com.google.common.io.Resources;
 
 public class TestSimplifyGraph extends MahoutTestCase {
 
@@ -158,24 +164,45 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
   @Test
   public void testSimplifyGraphJob() throws Exception {
+   
     File inputFile = new File(Resources.getResource("simplifytest.csv").toURI());
-    assert(inputFile.canRead());
+    assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
     outputDir.delete();
     Configuration conf = new Configuration();
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[]{"--input", inputFile.getAbsolutePath(), "--output", outputDir.getAbsolutePath()});
-    //Map<String, Integer> counts = getCounts(new File(outputDir, "part-r-00000"));
-    /*assertEquals(new Integer(3), counts.get("ring"));
-    assertEquals(new Integer(2), counts.get("all"));
-    assertEquals(new Integer(1), counts.get("darkness"));
-    assertFalse(counts.containsKey("the"));*/
-    /*try {
-      Thread.sleep(50000);
-    } catch (InterruptedException e){}*/
 
-
+    FileSystem sys = FileSystem.get(conf);
+    Path output = new Path(new File(outputDir, "part-r-00000").getAbsolutePath());
+    FileStatus outputStat = sys.getFileStatus(output);
+    HashMap<Membership, RepresentativeEdge> edges = generateTestData(inputFile, sys, conf);
+    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
+    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID() ));
+    while(r.nextKeyValue()) {
+      Membership m = r.getCurrentKey();
+      RepresentativeEdge e = r.getCurrentValue();
+      assertEquals(e,edges.remove(m));
+    }
+    assertTrue(edges.isEmpty());
   }
+
+  private HashMap<Membership, RepresentativeEdge> generateTestData(File file, FileSystem sys, Configuration conf) throws IOException {
+    Path path = new Path(file.getAbsolutePath());
+    FileStatus stat = sys.getFileStatus(path);
+    FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
+    Parser parser = new SimpleParser();
+    HashMap<Membership, RepresentativeEdge> edges = new HashMap<Membership, RepresentativeEdge>();
+    LineRecordReader l = new LineRecordReader();
+    l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
+    while(l.nextKeyValue()) {
+      Text t = l.getCurrentValue();
+      Vector<Vertex> members = parser.parse(t);
+      if (members.size() > 1) edges.put(new Membership().setMembers(members), new RepresentativeEdge(members.get(0), members.get(1)));
+    }
+    return edges;
+  };
 
 }

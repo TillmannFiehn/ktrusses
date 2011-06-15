@@ -20,11 +20,9 @@ package org.apache.mahout.graph.common;
 import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
@@ -33,7 +31,8 @@ import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 
 /**
- *
+ * Simplifies a graph. That is: remove loops, aggregate edges to
+ * {@link RepresentativeEdges }.
  */
 public class SimplifyGraphJob extends AbstractJob {
 
@@ -55,17 +54,11 @@ public class SimplifyGraphJob extends AbstractJob {
     Path inputPath = getInputPath();
     Path outputPath = getOutputPath();
 
-    Job simplify = prepareJob(inputPath,
-            outputPath,
-            TextInputFormat.class,
-            SimplifyGraphMapper.class,
-            Membership.class,
-            RepresentativeEdge.class,
-            SimplifyGraphReducer.class,
-            Membership.class,
-            RepresentativeEdge.class,
-            TextOutputFormat.class);
-    
+    Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class,
+        SimplifyGraphMapper.class, Membership.class, RepresentativeEdge.class,
+        SimplifyGraphReducer.class, Membership.class, RepresentativeEdge.class,
+        SequenceFileOutputFormat.class);
+
     simplify.waitForCompletion(true);
 
     return 0;
