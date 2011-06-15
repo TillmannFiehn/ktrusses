@@ -160,9 +160,11 @@ public class Membership implements WritableComparable<Membership> {
    * 
    * @param members
    *          the collection to be used to contain the objects
+   * @return this
    */
-  public void setMembers(Collection<Vertex> members) {
+  public Membership setMembers(Collection<Vertex> members) {
     this.members = members;
+    return this;
   }
 
   /**
