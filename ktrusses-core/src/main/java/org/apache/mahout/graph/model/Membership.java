@@ -41,7 +41,7 @@ import org.apache.hadoop.io.WritableComparable;
 public class Membership implements WritableComparable<Membership> {
 
   /**
-   * Factory method that is equivalent to the {@link readFields(DataInput)}
+   * Factory method that is equivalent to the {@link #readFields(DataInput)}
    * method.
    * 
    * @param in

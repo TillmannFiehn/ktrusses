@@ -39,7 +39,7 @@ public class TotalVertexOrder implements Comparator<VertexWithDegree> {
   /**
    * Singleton usage proposed. Instances are stateless anyway.
    * 
-   * @return
+   * @return the singleton instance
    */
   public static TotalVertexOrder instance() {
     return order;
