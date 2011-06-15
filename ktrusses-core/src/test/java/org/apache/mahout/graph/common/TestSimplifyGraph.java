@@ -56,13 +56,12 @@ public class TestSimplifyGraph extends MahoutTestCase {
     try {
       Configuration conf = new Configuration();
       conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-      DummyRecordWriter<Membership, RepresentativeEdge> writer =
-              new DummyRecordWriter<Membership, RepresentativeEdge>();
+      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
 
       SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
       SimplifyGraphMapper.Context ctx = DummyRecordWriter.build(simplifier,
-              conf, writer);
+          conf, writer);
       simplifier.setup(ctx);
 
       String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
@@ -73,7 +72,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
       Map<Membership, List<RepresentativeEdge>> output = writer.getData();
 
-      assertEquals(output.size(), 1);
+      assertEquals(1, output.size());
 
       Membership key = new Membership();
       key.addMember(new Vertex(1L));
@@ -83,11 +82,11 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
       assertNotNull(edges);
 
-      assertEquals(edges.size(), 2);
+      assertEquals(2, edges.size());
 
       RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
-              2L));
-      
+          2L));
+
       assertTrue(edges.remove(e));
       assertTrue(edges.remove(e));
 
@@ -104,13 +103,12 @@ public class TestSimplifyGraph extends MahoutTestCase {
     try {
       Configuration conf = new Configuration();
       conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-      DummyRecordWriter<Membership, RepresentativeEdge> writer =
-              new DummyRecordWriter<Membership, RepresentativeEdge>();
+      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
 
       SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
       SimplifyGraphMapper.Context ctxm = DummyRecordWriter.build(simplifier,
-              conf, writer);
+          conf, writer);
       simplifier.setup(ctxm);
 
       String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
@@ -126,9 +124,10 @@ public class TestSimplifyGraph extends MahoutTestCase {
       writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
 
       SimplifyGraphReducer.Context ctxr = DummyRecordWriter.build(aggregator,
-              conf, writer, Membership.class, RepresentativeEdge.class);
+          conf, writer, Membership.class, RepresentativeEdge.class);
 
-      for (Entry<Membership, List<RepresentativeEdge>> entry : output.entrySet()) {
+      for (Entry<Membership, List<RepresentativeEdge>> entry : output
+          .entrySet()) {
 
         aggregator.reduce(entry.getKey(), entry.getValue(), ctxr);
 
@@ -136,7 +135,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
       output = writer.getData();
 
-      assertEquals(output.size(), 1);
+      assertEquals(1, output.size());
 
       Membership key = new Membership();
       key.addMember(new Vertex(1L));
@@ -146,10 +145,10 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
       assertNotNull(edges);
 
-      assertEquals(edges.size(), 1);
+      assertEquals(1, edges.size());
 
       RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
-              2L));
+          2L));
 
       assertTrue(edges.remove(e));
       assertFalse(edges.remove(e));
@@ -164,7 +163,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
 
   @Test
   public void testSimplifyGraphJob() throws Exception {
-   
+
     File inputFile = new File(Resources.getResource("simplifytest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
@@ -172,25 +171,30 @@ public class TestSimplifyGraph extends MahoutTestCase {
     Configuration conf = new Configuration();
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
-    simplifyGraphJob.run(new String[]{"--input", inputFile.getAbsolutePath(), "--output", outputDir.getAbsolutePath()});
+    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
+        "--output", outputDir.getAbsolutePath() });
 
     FileSystem sys = FileSystem.get(conf);
-    Path output = new Path(new File(outputDir, "part-r-00000").getAbsolutePath());
+    Path output = new Path(
+        new File(outputDir, "part-r-00000").getAbsolutePath());
     FileStatus outputStat = sys.getFileStatus(output);
-    HashMap<Membership, RepresentativeEdge> edges = generateTestData(inputFile, sys, conf);
+    HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
+        inputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
     SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
-    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID() ));
-    while(r.nextKeyValue()) {
+    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
+    while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
       RepresentativeEdge e = r.getCurrentValue();
-      System.out.println(String.format("Job returned %s binned under membership %s. Testing map...", e, m));
-      assertEquals(e,edges.remove(m));
+      System.out.println(String.format(
+          "Job returned %s binned under membership %s. Testing map...", e, m));
+      assertEquals(edges.remove(m), e);
     }
     assertTrue(edges.isEmpty());
   }
 
-  private HashMap<Membership, RepresentativeEdge> generateTestData(File file, FileSystem sys, Configuration conf) throws IOException {
+  private HashMap<Membership, RepresentativeEdge> getTestFileContents(
+      File file, FileSystem sys, Configuration conf) throws IOException {
     Path path = new Path(file.getAbsolutePath());
     FileStatus stat = sys.getFileStatus(path);
     FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
@@ -198,12 +202,51 @@ public class TestSimplifyGraph extends MahoutTestCase {
     HashMap<Membership, RepresentativeEdge> edges = new HashMap<Membership, RepresentativeEdge>();
     LineRecordReader l = new LineRecordReader();
     l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
-    while(l.nextKeyValue()) {
+    while (l.nextKeyValue()) {
       Text t = l.getCurrentValue();
       Vector<Vertex> members = parser.parse(t);
-      if (members.size() > 1) edges.put(new Membership().setMembers(members), new RepresentativeEdge(members.get(0), members.get(1)));
+      if (members != null && members.size() > 1)
+        edges.put(new Membership().setMembers(members), new RepresentativeEdge(
+            members.get(0), members.get(1)));
     }
     return edges;
   };
 
+  @Test
+  public void testSimplifyGraphJobParser() throws Exception {
+
+    File longInputFile = new File(Resources.getResource(
+        "simplifytest.csv").toURI());
+
+    File inputFile = new File(Resources.getResource("simplifytestparser.csv")
+        .toURI());
+    assertTrue(inputFile.canRead());
+    File outputDir = getTestTempDir("simplifytest-out");
+    outputDir.delete();
+    Configuration conf = new Configuration();
+    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
+    simplifyGraphJob.setConf(conf);
+    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
+        "--output", outputDir.getAbsolutePath(),
+        "--" + Parser.class.getCanonicalName(),
+        LexicalVertexParser.class.getCanonicalName(), });
+
+    FileSystem sys = FileSystem.get(conf);
+    Path output = new Path(
+        new File(outputDir, "part-r-00000").getAbsolutePath());
+    FileStatus outputStat = sys.getFileStatus(output);
+    HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
+        longInputFile, sys, conf);
+    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
+    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
+    while (r.nextKeyValue()) {
+      Membership m = r.getCurrentKey();
+      RepresentativeEdge e = r.getCurrentValue();
+      System.out.println(String.format(
+          "Job returned %s binned under membership %s. Testing map...", e, m));
+      assertEquals(edges.remove(m), e);
+    }
+    assertTrue(edges.isEmpty());
+  }
 }

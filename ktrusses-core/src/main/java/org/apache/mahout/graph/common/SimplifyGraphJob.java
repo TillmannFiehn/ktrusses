@@ -20,19 +20,34 @@ package org.apache.mahout.graph.common;
 import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
 import org.apache.mahout.graph.model.Membership;
+import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 
 /**
  * Simplifies a graph. That is: remove loops, aggregate edges to
- * {@link RepresentativeEdges }.
+ * {@link RepresentativeEdge }. The input file format is a
+ * {@link TextInputFormat} which can be parsed via an implementation of
+ * {@link Parser}.
+ * 
+ * This job accepts three input arguments
+ * 
+ * <pre>
+ *  input
+ *  output
+ *  org.apache.mahout.graph.model.Parser
+ * </pre>
+ * 
+ * The output is a {@link SequenceFile} containing a {@link Membership} as key
+ * and a {@link RepresentativeEdge} as value.
  */
 public class SimplifyGraphJob extends AbstractJob {
 
@@ -45,11 +60,18 @@ public class SimplifyGraphJob extends AbstractJob {
 
     addInputOption();
     addOutputOption();
+    addOption(
+        Parser.class.getCanonicalName(),
+        Parser.class.getCanonicalName(),
+        "A class implementing the Parser interface that should be used to parse the graph file.");
 
     Map<String, String> parsedArgs = parseArguments(args);
     if (parsedArgs == null) {
       return -1;
     }
+
+    String parserImplementationClass = parsedArgs.get("--"
+        + Parser.class.getCanonicalName()); // extract parameter
 
     Path inputPath = getInputPath();
     Path outputPath = getOutputPath();
@@ -58,6 +80,12 @@ public class SimplifyGraphJob extends AbstractJob {
         SimplifyGraphMapper.class, Membership.class, RepresentativeEdge.class,
         SimplifyGraphReducer.class, Membership.class, RepresentativeEdge.class,
         SequenceFileOutputFormat.class);
+
+    if (parserImplementationClass != null) { // pass parser parameter to the job
+                                             // if set
+      simplify.getConfiguration().set(Parser.class.getCanonicalName(),
+          parserImplementationClass);
+    }
 
     simplify.waitForCompletion(true);
 

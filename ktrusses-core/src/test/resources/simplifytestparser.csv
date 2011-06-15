@@ -1,0 +1,10 @@
+# this file has to be held synchronous to simplifytest.csv in 
+# the way that any digit in the first should match a letter in this 
+# according to the lexicographic position, e.g. 0 -> A, 1 -> B
+A,A
+A,B
+B,A
+B,A
+C,D
+E,D
+E,C
