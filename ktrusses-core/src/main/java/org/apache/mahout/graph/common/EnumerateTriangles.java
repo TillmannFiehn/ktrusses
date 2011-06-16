@@ -18,24 +18,29 @@
 package org.apache.mahout.graph.common;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.OpenTriad;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Triangle;
-import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
 
 /**
  * Container for the {@link EnumerateTrianglesJob } mapper and reducer classes.
  */
 public class EnumerateTriangles {
+
+  private static Logger log = Logger.getLogger(EnumerateTriangles.class);
 
   /**
    * Finds the lower degree vertex of an edge and emits key-value-pairs to bin
@@ -51,6 +56,9 @@ public class EnumerateTriangles {
       Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) value.getValue());
       VertexWithDegree lower = order.iterator().next();
       if (lower.getDegree() > 1) {
+        log.trace(String.format(
+            "edge %s under lower degree vertex %s.",
+            value, lower));
         ctx.write(new Membership().addMember(lower.getVertex()), value);
       }
     }
@@ -69,29 +77,32 @@ public class EnumerateTriangles {
     public void reduce(Membership key, Iterable<GeneralGraphElement> values,
         Context ctx) throws IOException, InterruptedException {
 
-      Vertex lower = key.getMembers().iterator().next();
+      List<RepresentativeEdge> map = new LinkedList<RepresentativeEdge>();
 
-      for (GeneralGraphElement generalouter : values) { // nested loop join
-        RepresentativeEdge outer = (RepresentativeEdge) generalouter.getValue();
-        for (GeneralGraphElement generalinner : values) {
-          RepresentativeEdge inner = (RepresentativeEdge) generalinner.getValue();
-          if (!outer.equals(inner)) {
-            Set<VertexWithDegree> outerSet = TotalVertexOrder.getOrdered(outer);
-            Set<VertexWithDegree> innerSet = TotalVertexOrder.getOrdered(inner);
-            outerSet.remove(lower); // VwD equals V if vertices equal
-            innerSet.remove(lower); // VwD equals V if vertices equal
+      for (GeneralGraphElement general : values) { // nested loop join
+        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) general.getValue());
+        for (RepresentativeEdge build : map) {
+
+          if (!probe.equals(build)) {
+            Iterator<VertexWithDegree> iterator = TotalVertexOrder.getOrdered(build, probe).iterator(); 
+            VertexWithDegree lower = iterator.next(); 
+            iterator.remove();
             // build the new key
             Membership newkey = new Membership();
-            newkey.addMember(outerSet.iterator().next().getVertex());
-            newkey.addMember(innerSet.iterator().next().getVertex());
+            newkey.addMember(iterator.next().getVertex());
+            newkey.addMember(iterator.next().getVertex());
 
             OpenTriad newvalue = new OpenTriad();
-            newvalue.setApex(lower);
-            newvalue.addEdge(outer);
-            newvalue.addEdge(inner);
+            newvalue.setApex(lower.getVertex());
+            newvalue.addEdge(probe);
+            newvalue.addEdge(build);
+            log.trace(String.format(
+                "open triad under membership key %s.",
+                newvalue, newkey));
             ctx.write(newkey, new GeneralGraphElement(newvalue));
           }
         }
+        map.add(probe);
       }
     }
   }
@@ -127,6 +138,9 @@ public class EnumerateTriangles {
           Membership m = new Membership().addMember(triad.getApex());
           m.addMember(edge.getVertex0());
           m.addMember(edge.getVertex1());
+          log.trace(String.format(
+              "triangle %s, binned unhip key %s.",
+              triangle, m));
           ctx.write(m, new GeneralGraphElement(triangle));
         }
       }

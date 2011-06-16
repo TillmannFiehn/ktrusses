@@ -26,8 +26,8 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
 import org.apache.mahout.graph.common.EnumerateTriangles.BuildOpenTriads;
+import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
 import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
 import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
@@ -79,7 +79,7 @@ public class EnumerateTrianglesJob extends AbstractJob {
             Mapper.class,
             Membership.class,
             GeneralGraphElement.class,
-            JoinDegrees.class,
+            BuildTriangles.class,
             Membership.class,
             GeneralGraphElement.class,
             SequenceFileOutputFormat.class);
