@@ -114,4 +114,17 @@ public class Triangle implements WritableComparable<Triangle> {
   public boolean equals(Object o) {
     return (o instanceof Triangle && compareTo((Triangle) o) == 0);
   }
+
+  /**
+   * The hash code is the product of the triangles's edge ids.
+   */
+  @Override
+  public int hashCode() {
+    int hash = 1;
+    Iterator<RepresentativeEdge> i = edges.iterator();
+    while (i.hasNext()) {
+      hash *= i.next().hashCode();
+    }
+    return hash;
+  }
 }

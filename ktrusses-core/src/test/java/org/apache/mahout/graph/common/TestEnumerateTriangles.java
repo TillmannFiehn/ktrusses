@@ -41,7 +41,6 @@ import org.apache.mahout.graph.model.Vertex;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
-import java.util.ArrayList;
 import java.util.HashSet;
 import org.apache.mahout.graph.model.Triangle;
 
@@ -131,11 +130,24 @@ public class TestEnumerateTriangles extends MahoutTestCase {
     }
     HashSet<Triangle> triangles = new HashSet<Triangle>();
     HashSet<Vertex> visited = new HashSet<Vertex>();
-    for (Membership m : edges.keySet()) {
-      for (Vertex v : m.getMembers()) {
-        
+    for (Vertex v1 : vertexes.keySet()) {
+      for (Vertex v2 : vertexes.get(v1).getMembers() ) {
+        assertFalse(v2.equals(v1));
+        if( visited.contains(v2) ) continue;
+        for (Vertex v3 : vertexes.get(v2).getMembers() ) {
+          if( visited.contains(v2) ) continue;
+          if( vertexes.get(v3).getMembers().contains(v1) ) {
+            Triangle t = new Triangle();
+            t.addEdge(new RepresentativeEdge(v1,v2));
+            t.addEdge(new RepresentativeEdge(v1,v3));
+            t.addEdge(new RepresentativeEdge(v2,v3));
+            triangles.add(t);
+          }
+        }
       }
+      visited.add(v1);
     }
-  return triangles;
+    System.out.println("Found "+triangles.size()+" triangles.");
+    return triangles;
   }
 }
