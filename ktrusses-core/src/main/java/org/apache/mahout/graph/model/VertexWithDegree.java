@@ -92,4 +92,9 @@ public class VertexWithDegree implements Comparable<VertexWithDegree> {
   public long getDegree() {
     return d;
   }
+  
+  @Override
+  public String toString() {
+    return String.format("%s (%d)",v, d);
+  }
 }

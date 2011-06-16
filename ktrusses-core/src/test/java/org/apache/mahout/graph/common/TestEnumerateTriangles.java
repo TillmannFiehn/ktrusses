@@ -33,6 +33,8 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
@@ -41,11 +43,18 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.Vertex;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
 
 public class TestEnumerateTriangles extends MahoutTestCase {
+
+  @Before
+  public void logLevel() {
+    Logger.getRootLogger().setLevel(Level.WARN);
+    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
+  }
 
   @Test
   public void testEnumerateTrianglesJob() throws Exception {
@@ -119,7 +128,7 @@ public class TestEnumerateTriangles extends MahoutTestCase {
       assertEquals(test, t);
 
     }
-    assertTrue(triangles.isEmpty());
+    assertTrue(String.format("%s should have been empty.", triangles), triangles.isEmpty());
   }
 
   private HashMap<Membership, Triangle> getTestFileContents(File file, FileSystem sys,
@@ -149,8 +158,6 @@ public class TestEnumerateTriangles extends MahoutTestCase {
     HashSet<Vertex> visited = new HashSet<Vertex>();
     for (Vertex v1 : vertexes.keySet()) {
       for (Vertex v2 : vertexes.get(v1).getMembers()) {
-        // TODO assertions in sub programs are not too cool
-        assertFalse(v2.equals(v1));
         if (visited.contains(v2))
           continue;
         for (Vertex v3 : vertexes.get(v2).getMembers()) {
@@ -168,7 +175,6 @@ public class TestEnumerateTriangles extends MahoutTestCase {
       }
       visited.add(v1);
     }
-    System.out.println("Found " + triangles.size() + " triangles.");
     return triangles;
   }
 }

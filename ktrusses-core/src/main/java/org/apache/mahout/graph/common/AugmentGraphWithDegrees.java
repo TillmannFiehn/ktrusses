@@ -81,10 +81,7 @@ public class AugmentGraphWithDegrees {
         Membership newkey = new Membership().addMember(edge.getVertex0())
             .addMember(edge.getVertex1());
         log.trace(String.format(
-            "Outputting augmentet edge %s, binned under membership key %s.",
-            edge, newkey));
-        System.out.println(String.format(
-            "Outputting augmentet edge %s, binned under membership key %s.",
+            "augmentet edge %s, binned under %s.",
             edge, newkey));
         ctx.write(newkey, edge);
       }
@@ -128,10 +125,7 @@ public class AugmentGraphWithDegrees {
       edge.setDegree(v1, d1);
 
       log.trace(String.format(
-          "Outputting augmentet edge %s, binned under membership key %s.",
-          edge, key));
-      System.out.println(String.format(
-          "Outputting augmentet edge %s, binned under membership key %s.",
+          "fully augmentet edge %s, binned under %s.",
           edge, key));
       ctx.write(key, new GeneralGraphElement((WritableComparable) edge));
     }

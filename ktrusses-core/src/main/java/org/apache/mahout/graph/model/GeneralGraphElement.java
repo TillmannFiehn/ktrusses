@@ -128,5 +128,10 @@ public class GeneralGraphElement implements
       throw new IllegalArgumentException();
     }
   };
+  
+  @Override
+  public String toString() {
+    return value.toString();
+  }
 
 }
