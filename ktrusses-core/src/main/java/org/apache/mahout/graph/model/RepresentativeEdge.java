@@ -21,10 +21,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.hadoop.io.WritableComparable;
+
 /**
  * A representative edge to be operated on in several graph algorithms.
  */
-public class RepresentativeEdge extends Edge implements Comparable<RepresentativeEdge> {
+public class RepresentativeEdge extends Edge implements WritableComparable<RepresentativeEdge> {
 
   /**
    * Make a deep copy of the stated object.
