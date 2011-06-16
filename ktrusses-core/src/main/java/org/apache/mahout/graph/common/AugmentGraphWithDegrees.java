@@ -25,18 +25,19 @@ import java.util.List;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Vertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Container for the {@link AugmentGraphWithDegrees } mapper and reducer classes
  */
 public class AugmentGraphWithDegrees {
 
-  private static Logger log = Logger.getLogger(AugmentGraphWithDegrees.class);
+  private static Logger log = LoggerFactory.getLogger(AugmentGraphWithDegrees.class);
 
   /**
    * Sends every edge to each vertices

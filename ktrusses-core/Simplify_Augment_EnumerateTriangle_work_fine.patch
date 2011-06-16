@@ -1,0 +1,4273 @@
+diff --git a/documentation/Graph Twiddling in a MapReduce World.pdf b/documentation/Graph Twiddling in a MapReduce World.pdf
+new file mode 100644
+index 0000000..4a63b11
+Binary files /dev/null and b/documentation/Graph Twiddling in a MapReduce World.pdf differ
+diff --git a/ktrusses-core/pom.xml b/ktrusses-core/pom.xml
+new file mode 100644
+index 0000000..251d6a8
+--- /dev/null
++++ b/ktrusses-core/pom.xml
+@@ -0,0 +1,97 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
++    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <artifactId>ktrusses</artifactId>
++    <groupId>de.tuberlin.dima.aim</groupId>
++    <version>0.0.1-SNAPSHOT</version>
++  </parent>
++
++ <artifactId>ktrusses-core</artifactId>
++  <version>1.0-SNAPSHOT</version>
++  <name>AIM kTrusses Core Modules</name>
++  <url>http://maven.apache.org</url>
++
++  <profiles>
++    <profile>
++      <id>skipTests</id>
++      <activation>
++        <activeByDefault>true</activeByDefault>
++      </activation>
++      <properties>
++        <maven.test.skip>false</maven.test.skip>
++      </properties>
++    </profile>
++    <profile>
++      <id>check</id>
++      <properties>
++        <maven.test.skip>false</maven.test.skip>
++      </properties>
++    </profile>
++
++  </profiles>
++
++  <dependencies>
++  	<dependency>
++      <groupId>org.slf4j</groupId>
++      <artifactId>slf4j-simple</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.mockito</groupId>
++      <artifactId>mockito-all</artifactId>
++       <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>org.apache.lucene</groupId>
++      <artifactId>lucene-core</artifactId>
++      <version>3.1.0</version>
++    </dependency>
++    <dependency>
++      <groupId>org.apache.mahout</groupId>
++      <artifactId>mahout-collections</artifactId>
++    </dependency>
++    <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-core</artifactId>
++    </dependency>
++    <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-core</artifactId>
++        <version>${mahout.version}</version><!--$NO-MVN-MAN-VER$-->
++        <type>test-jar</type>
++        <scope>test</scope>
++    </dependency>
++    <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-math</artifactId>
++        <version>${mahout.version}</version><!--$NO-MVN-MAN-VER$-->
++        <type>test-jar</type>
++        <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>eu.stratosphere</groupId>
++      <artifactId>pact-common</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>eu.stratosphere</groupId>
++      <artifactId>pact-clients</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++
++  <properties>
++    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
++    <house.keeping.base>${basedir}/..</house.keeping.base>
++  </properties>
++
++</project>
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegrees.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegrees.java
+new file mode 100644
+index 0000000..84e98ff
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegrees.java
+@@ -0,0 +1,133 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.IOException;
++import java.util.Iterator;
++import java.util.LinkedList;
++import java.util.List;
++
++import org.apache.hadoop.io.WritableComparable;
++import org.apache.hadoop.mapreduce.Mapper;
++import org.apache.hadoop.mapreduce.Reducer;
++import org.apache.log4j.Logger;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.Vertex;
++
++/**
++ * Container for the {@link AugmentGraphWithDegrees } mapper and reducer classes
++ */
++public class AugmentGraphWithDegrees {
++
++  private static Logger log = Logger.getLogger(AugmentGraphWithDegrees.class);
++
++  /**
++   * Sends every edge to each vertices
++   */
++  public static class ScatterEdges extends
++      Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
++
++    @Override
++    public void map(Object key, RepresentativeEdge value, Context ctx)
++        throws IOException, InterruptedException {
++
++      ctx.write(new Membership().addMember(value.getVertex0()), RepresentativeEdge.duplicate(value));
++      ctx.write(new Membership().addMember(value.getVertex1()), RepresentativeEdge.duplicate(value));
++
++    }
++  }
++
++  /**
++   * Sums up the count of edges for each vertex and augments all edges with a
++   * degree information for the key vertex
++   */
++  public static class SumDegrees extends
++      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
++
++    @Override
++    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
++        Context ctx) throws IOException, InterruptedException {
++      long degree = 0;
++      List<RepresentativeEdge> edges = new LinkedList<RepresentativeEdge>();
++      Iterator<RepresentativeEdge> i = values.iterator();
++      while (i.hasNext()) {
++        edges.add(RepresentativeEdge.duplicate(i.next()));
++        degree++; // calculate degree
++      }
++
++      Vertex v = key.getMembers().iterator().next();
++
++      Iterator<RepresentativeEdge> j = edges.iterator();
++      while (j.hasNext()) {
++        RepresentativeEdge edge = j.next();
++        edge.setDegree(v, degree); // augment the edge
++        Membership newkey = new Membership().addMember(edge.getVertex0())
++            .addMember(edge.getVertex1());
++        log.trace(String.format(
++            "augmentet edge %s, binned under %s.",
++            edge, newkey));
++        ctx.write(newkey, edge);
++      }
++
++    }
++  }
++
++  /**
++   * Joins identical edges assuring degree augmentations for both nodes
++   */
++  public static class JoinDegrees extends
++      Reducer<Membership, RepresentativeEdge, Membership, GeneralGraphElement> {
++
++    @SuppressWarnings("rawtypes")
++    @Override
++    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
++        Context ctx) throws IOException, InterruptedException {
++      long d0 = Integer.MIN_VALUE;
++      long d1 = Integer.MIN_VALUE;
++      List<RepresentativeEdge> edges = new LinkedList<RepresentativeEdge>();
++      for (RepresentativeEdge edge : values) {
++        edge = RepresentativeEdge.duplicate(edge);
++        edges.add(edge);
++        if (d0 < 0) {
++          Vertex v = edge.getVertex0();
++          d0 = edge.getDegree(v);
++        }
++
++        if (d1 < 0) {
++          Vertex v = edge.getVertex1();
++          d1 = edge.getDegree(v);
++        }
++
++      }
++
++      RepresentativeEdge edge = edges.iterator().next();
++
++      Vertex v0 = edge.getVertex0();
++      edge.setDegree(v0, d0);
++      Vertex v1 = edge.getVertex1();
++      edge.setDegree(v1, d1);
++
++      log.trace(String.format(
++          "fully augmentet edge %s, binned under %s.",
++          edge, key));
++      ctx.write(key, new GeneralGraphElement((WritableComparable) edge));
++    }
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegreesJob.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegreesJob.java
+new file mode 100644
+index 0000000..6c41804
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/AugmentGraphWithDegreesJob.java
+@@ -0,0 +1,83 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.util.Map;
++
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.mapreduce.Job;
++import org.apache.hadoop.mapreduce.Mapper;
++import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
++import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
++import org.apache.hadoop.util.ToolRunner;
++import org.apache.mahout.common.AbstractJob;
++import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
++import org.apache.mahout.graph.common.AugmentGraphWithDegrees.ScatterEdges;
++import org.apache.mahout.graph.common.AugmentGraphWithDegrees.SumDegrees;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++
++/**
++ * Augments a graph with degree information for each vertex which is the number
++ * of {@link RepresentativeEdge}s that point to or from this very vertex.
++ */
++public class AugmentGraphWithDegreesJob extends AbstractJob {
++
++  public static void main(String[] args) throws Exception {
++    ToolRunner.run(new AugmentGraphWithDegreesJob(), args);
++  }
++
++  @Override
++  public int run(String[] args) throws Exception {
++
++    addInputOption();
++    addOutputOption();
++
++    Map<String, String> parsedArgs = parseArguments(args);
++    if (parsedArgs == null) {
++      return -1;
++    }
++
++    Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
++
++    Path inputPath = getInputPath();
++    Path augmentedEdgesPath = new Path(tempDirPath, "augmented-edges-"
++        + System.currentTimeMillis());
++    Path outputPath = getOutputPath();
++
++    // scatter the edges to each of the vertices and count degree
++    Job scatter = prepareJob(inputPath, augmentedEdgesPath,
++        SequenceFileInputFormat.class, ScatterEdges.class, Membership.class,
++        RepresentativeEdge.class, SumDegrees.class, Membership.class,
++        RepresentativeEdge.class, SequenceFileOutputFormat.class);
++
++    scatter.waitForCompletion(true);
++
++    // join augmented edges with partial degree information to to complete
++    // records
++    Job join = prepareJob(augmentedEdgesPath, outputPath,
++        SequenceFileInputFormat.class, Mapper.class, Membership.class,
++        RepresentativeEdge.class, JoinDegrees.class, Membership.class,
++        GeneralGraphElement.class, SequenceFileOutputFormat.class);
++
++    join.waitForCompletion(true);
++
++    return 0;
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTriangles.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTriangles.java
+new file mode 100644
+index 0000000..373934b
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTriangles.java
+@@ -0,0 +1,149 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.IOException;
++import java.util.Iterator;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Set;
++import java.util.TreeSet;
++
++import org.apache.hadoop.io.WritableComparable;
++import org.apache.hadoop.mapreduce.Mapper;
++import org.apache.hadoop.mapreduce.Reducer;
++import org.apache.log4j.Logger;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.OpenTriad;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.Triangle;
++import org.apache.mahout.graph.model.VertexWithDegree;
++
++/**
++ * Container for the {@link EnumerateTrianglesJob } mapper and reducer classes.
++ */
++public class EnumerateTriangles {
++
++  private static Logger log = Logger.getLogger(EnumerateTriangles.class);
++
++  /**
++   * Finds the lower degree vertex of an edge and emits key-value-pairs to bin
++   * under this lower degree vertex.
++   */
++  public static class ScatterEdgesToLowerDegreeVertex extends
++      Mapper<Object, GeneralGraphElement, Membership, GeneralGraphElement> {
++
++    @Override
++    public void map(Object key, GeneralGraphElement value, Context ctx)
++        throws IOException, InterruptedException {
++
++      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) value.getValue());
++      VertexWithDegree lower = order.iterator().next();
++      if (lower.getDegree() > 1) {
++        log.trace(String.format(
++            "edge %s under lower degree vertex %s.",
++            value, lower));
++        ctx.write(new Membership().addMember(lower.getVertex()), value);
++      }
++    }
++  }
++
++  /**
++   * Builds open triads from edges by pairwise joining the edges on the lower
++   * degree vertex which is the apex of the triad. Emits key-value pairs where
++   * the value is the triad and the key is the two outside vertices.
++   * 
++   */
++  public static class BuildOpenTriads extends
++      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
++
++    @Override
++    public void reduce(Membership key, Iterable<GeneralGraphElement> values,
++        Context ctx) throws IOException, InterruptedException {
++
++      List<RepresentativeEdge> map = new LinkedList<RepresentativeEdge>();
++
++      for (GeneralGraphElement general : values) { // nested loop join
++        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) general.getValue());
++        for (RepresentativeEdge build : map) {
++
++          if (!probe.equals(build)) {
++            Iterator<VertexWithDegree> iterator = TotalVertexOrder.getOrdered(build, probe).iterator(); 
++            VertexWithDegree lower = iterator.next(); 
++            iterator.remove();
++            // build the new key
++            Membership newkey = new Membership();
++            newkey.addMember(iterator.next().getVertex());
++            newkey.addMember(iterator.next().getVertex());
++
++            OpenTriad newvalue = new OpenTriad();
++            newvalue.setApex(lower.getVertex());
++            newvalue.addEdge(probe);
++            newvalue.addEdge(build);
++            log.trace(String.format(
++                "open triad under membership key %s.",
++                newvalue, newkey));
++            ctx.write(newkey, new GeneralGraphElement(newvalue));
++          }
++        }
++        map.add(probe);
++      }
++    }
++  }
++
++  /**
++   * Joins {@link RepresentativeEdge } and {@link OpenTriad} on the outside
++   * vertices of the triad.
++   */
++  public static class BuildTriangles extends
++      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
++
++    @Override
++    public void reduce(Membership key, Iterable<GeneralGraphElement> values, Context ctx)
++        throws IOException, InterruptedException {
++      Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
++      Set<OpenTriad> triads = new TreeSet<OpenTriad>();
++      // TODO avoid NLJ via a smart merging and partitioning of input keys
++      for (GeneralGraphElement general : values) { // build sets with separate inputs
++        @SuppressWarnings("rawtypes")
++        WritableComparable value = general.getValue();
++        if (value instanceof OpenTriad) {
++          triads.add(OpenTriad.duplicate((OpenTriad) value));
++        }
++        if (value instanceof RepresentativeEdge) {
++          edges.add(RepresentativeEdge.duplicate((RepresentativeEdge) value));
++        }
++      }
++      for (OpenTriad triad : triads) { // nested loop join
++        for (RepresentativeEdge edge : edges) {
++          Triangle triangle = new Triangle();
++          triangle.getEdges().addAll(triad.getEdges());
++          triangle.addEdge(edge);
++          Membership m = new Membership().addMember(triad.getApex());
++          m.addMember(edge.getVertex0());
++          m.addMember(edge.getVertex1());
++          log.trace(String.format(
++              "triangle %s, binned unhip key %s.",
++              triangle, m));
++          ctx.write(m, new GeneralGraphElement(triangle));
++        }
++      }
++    }
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTrianglesJob.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTrianglesJob.java
+new file mode 100644
+index 0000000..8cfb0ab
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/EnumerateTrianglesJob.java
+@@ -0,0 +1,95 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.util.Map;
++
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.mapreduce.Job;
++import org.apache.hadoop.mapreduce.Mapper;
++import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
++import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
++import org.apache.hadoop.util.ToolRunner;
++import org.apache.mahout.common.AbstractJob;
++import org.apache.mahout.graph.common.EnumerateTriangles.BuildOpenTriads;
++import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
++import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++
++/**
++ * Enumerates the triangles of a graph.
++ */
++public class EnumerateTrianglesJob extends AbstractJob {
++
++  public static void main(String[] args) throws Exception {
++    ToolRunner.run(new EnumerateTrianglesJob(), args);
++  }
++
++  @Override
++  public int run(String[] args) throws Exception {
++
++    addInputOption();
++    addOutputOption();
++
++    Map<String, String> parsedArgs = parseArguments(args);
++    if (parsedArgs == null) {
++      return -1;
++    }
++
++    Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
++
++    Path inputPath = getInputPath();
++    Path triadsPath = new Path(tempDirPath, "triangles-" + System.currentTimeMillis());
++    Path outputPath = getOutputPath();
++
++    // scatter the edges to lower degree vertex and build open triads
++    Job scatter = prepareJob(inputPath,
++            triadsPath,
++            SequenceFileInputFormat.class,
++            ScatterEdgesToLowerDegreeVertex.class,
++            Membership.class,
++            GeneralGraphElement.class,
++            BuildOpenTriads.class,
++            Membership.class,
++            GeneralGraphElement.class,
++            SequenceFileOutputFormat.class);
++
++    scatter.waitForCompletion(true);
++    
++    //join triads and edges pairwise to get all triangles
++    Job join = prepareJob(new Path(triadsPath + "," + inputPath),
++            outputPath,
++            SequenceFileInputFormat.class,
++            Mapper.class,
++            Membership.class,
++            GeneralGraphElement.class,
++            BuildTriangles.class,
++            Membership.class,
++            GeneralGraphElement.class,
++            SequenceFileOutputFormat.class);
++
++
++    join.waitForCompletion(true);
++    
++    
++    
++    return 0;
++  }
++  
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraph.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraph.java
+new file mode 100644
+index 0000000..db73e31
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraph.java
+@@ -0,0 +1,126 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.Vector;
++
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.io.Text;
++import org.apache.hadoop.mapreduce.Mapper;
++import org.apache.hadoop.mapreduce.Reducer;
++import org.apache.log4j.Logger;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.SimpleParser;
++import org.apache.mahout.graph.model.Vertex;
++
++/**
++ * Container for the {@link SimplifyGraphJob } mapper and reducer classes.
++ * 
++ */
++public class SimplifyGraph {
++
++  private static Logger log = Logger.getLogger(SimplifyGraph.class);
++  
++  /**
++   * Bins edges by an ordered membership set. Scatters edges with at least two
++   * vertices in the membership set.
++   * 
++   */
++  public static class SimplifyGraphMapper extends
++      Mapper<Object, Text, Membership, RepresentativeEdge> {
++
++    Parser parser;
++
++    @Override
++    public void setup(Context ctx) {
++      Configuration conf = ctx.getConfiguration();
++      String classname = conf.get(Parser.class.getCanonicalName());
++      if( classname!=null ) try {
++        @SuppressWarnings("unchecked")
++        Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
++        parser = (Parser) parserclass.newInstance();
++      } catch (ClassNotFoundException e) {
++        log.error(e.getMessage());
++        log.warn(e.getMessage(), e);
++      } catch (InstantiationException e) {
++        log.error(e.getMessage());
++        log.warn(e.getMessage(), e);
++      } catch (IllegalAccessException e) {
++        log.error(e.getMessage());
++        log.warn(e.getMessage(), e);
++      }
++      if (parser == null) {
++        parser = new SimpleParser();
++      }
++
++    }
++
++    @Override
++    public void map(Object key, Text description, Context ctx)
++        throws IOException, InterruptedException {
++
++      Vector<Vertex> members = parser.parse(description);
++      if (members != null && members.size() > 1) {
++        Iterator<Vertex> i = members.iterator();
++        Vertex v0 = i.next();
++        Vertex v1 = i.next();
++        RepresentativeEdge edge = new RepresentativeEdge(v0, v1);
++        Membership mem = new Membership();
++        mem.addMember(v0).addMember(v1);
++        log.trace(String.format(
++            "representative no-loop edge %s, binned under %s.",
++            edge, mem));
++        ctx.write(mem, edge);
++      }
++
++    }
++  }
++
++  /**
++   * Removes duplicate edges.
++   */
++  public static class SimplifyGraphReducer extends
++      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
++
++    @Override
++    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
++        Context ctx) throws InterruptedException, IOException {
++
++      Map<RepresentativeEdge, RepresentativeEdge> edges = new HashMap<RepresentativeEdge, RepresentativeEdge>();
++      for (RepresentativeEdge edge : values) {
++        RepresentativeEdge prev = edges.get(edge);
++        if (prev != null) {
++          // TODO implement aggregation
++        }
++        edges.put(edge, edge);
++      }
++      for (RepresentativeEdge edge : edges.values()) {
++        log.trace(String.format(
++            "representative no-loop unique edge %s, binned under %s.",
++            edge, key));
++        ctx.write(key, edge);
++      }
++    }
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraphJob.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraphJob.java
+new file mode 100644
+index 0000000..52e5767
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/SimplifyGraphJob.java
+@@ -0,0 +1,94 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.util.Map;
++
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.io.SequenceFile;
++import org.apache.hadoop.mapreduce.Job;
++import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
++import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
++import org.apache.hadoop.util.ToolRunner;
++import org.apache.mahout.common.AbstractJob;
++import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
++import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++
++/**
++ * Simplifies a graph. That is: remove loops, aggregate edges to
++ * {@link RepresentativeEdge }. The input file format is a
++ * {@link TextInputFormat} which can be parsed via an implementation of
++ * {@link Parser}.
++ * 
++ * This job accepts three input arguments
++ * 
++ * <pre>
++ *  input
++ *  output
++ *  org.apache.mahout.graph.model.Parser
++ * </pre>
++ * 
++ * The output is a {@link SequenceFile} containing a {@link Membership} as key
++ * and a {@link RepresentativeEdge} as value.
++ */
++public class SimplifyGraphJob extends AbstractJob {
++
++  public static void main(String[] args) throws Exception {
++    ToolRunner.run(new SimplifyGraphJob(), args);
++  }
++
++  @Override
++  public int run(String[] args) throws Exception {
++
++    addInputOption();
++    addOutputOption();
++    addOption(
++        Parser.class.getCanonicalName(),
++        Parser.class.getCanonicalName(),
++        "A class implementing the Parser interface that should be used to parse the graph file.");
++
++    Map<String, String> parsedArgs = parseArguments(args);
++    if (parsedArgs == null) {
++      return -1;
++    }
++
++    String parserImplementationClass = parsedArgs.get("--"
++        + Parser.class.getCanonicalName()); // extract parameter
++
++    Path inputPath = getInputPath();
++    Path outputPath = getOutputPath();
++
++    Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class,
++        SimplifyGraphMapper.class, Membership.class, RepresentativeEdge.class,
++        SimplifyGraphReducer.class, Membership.class, RepresentativeEdge.class,
++        SequenceFileOutputFormat.class);
++
++    if (parserImplementationClass != null) { // pass parser parameter to the job
++                                             // if set
++      simplify.getConfiguration().set(Parser.class.getCanonicalName(),
++          parserImplementationClass);
++    }
++
++    simplify.waitForCompletion(true);
++
++    return 0;
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/common/TotalVertexOrder.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/TotalVertexOrder.java
+new file mode 100644
+index 0000000..ee75d9b
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/common/TotalVertexOrder.java
+@@ -0,0 +1,108 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.util.Comparator;
++import java.util.Set;
++import java.util.TreeSet;
++
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.Vertex;
++import org.apache.mahout.graph.model.VertexWithDegree;
++
++/**
++ * {@link Comparator} class to give a total ordering on augmented vertices. Use
++ * the degree order and natural ordering of vertices as a tie-breaker.
++ */
++public class TotalVertexOrder implements Comparator<VertexWithDegree> {
++
++  private static final TotalVertexOrder order = new TotalVertexOrder();
++
++  private TotalVertexOrder() {
++  }
++
++  /**
++   * Singleton usage proposed. Instances are stateless anyway.
++   * 
++   * @return the singleton instance
++   */
++  public static TotalVertexOrder instance() {
++    return order;
++  }
++
++  /**
++   * Orders {@link VertexWithDegree} according to their natural order and uses
++   * the {@link Vertex} natural order as tie-breaker.
++   */
++  @Override
++  public int compare(VertexWithDegree v, VertexWithDegree w) {
++    int c = 0;
++    if (v == null && w == null) {
++      c = 0;
++    } else if (v == null && w != null) {
++      c = Integer.MIN_VALUE;
++    } else if (v != null && w == null) {
++      c = Integer.MAX_VALUE;
++    } else {
++      c = v.compareTo(w);
++      if (c == 0) {
++        c = v.getVertex().compareTo(w.getVertex());
++      }
++    }
++    return c;
++  }
++
++  /**
++   * Return the vertices of a {@link RepresentativeEdge} as an ordered set
++   * according to the ordering of this class.
++   * 
++   * @param edge
++   *          The edge to get the vertices of
++   * @return An ordered set of vertices
++   */
++  public static Set<VertexWithDegree> getOrdered(RepresentativeEdge edge) {
++    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>(instance());
++    Vertex v0 = edge.getVertex0();
++    vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
++    Vertex v1 = edge.getVertex1();
++    vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
++    return vertices;
++  }
++
++  /**
++   * Return the vertices of two {@link RepresentativeEdge}s as an ordered set
++   * according to the ordering of this class.
++   * 
++   * @param e0
++   *          One of the edges to get the vertices of
++   * @param e1
++   *          One of the edges to get the vertices of
++   * @return An ordered set of vertices
++   */
++  public static Set<VertexWithDegree> getOrdered(RepresentativeEdge e0,
++      RepresentativeEdge e1) {
++    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>(instance());
++    for (RepresentativeEdge edge : new RepresentativeEdge[] { e0, e1 }) {
++      Vertex v0 = edge.getVertex0();
++      vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
++      Vertex v1 = edge.getVertex1();
++      vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
++    }
++    return vertices;
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindComponentsJob.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindComponentsJob.java
+new file mode 100644
+index 0000000..aa8799f
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindComponentsJob.java
+@@ -0,0 +1,25 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.components;
++
++/**
++ * Finds components of a graph.  
++ *
++ */
++public class FindComponentsJob {
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindKTrussesJob.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindKTrussesJob.java
+new file mode 100644
+index 0000000..1a84179
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/components/FindKTrussesJob.java
+@@ -0,0 +1,24 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.components;
++
++/**
++ * Find <code>k</code>-trusses in a graph.
++ */
++public class FindKTrussesJob {
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Edge.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Edge.java
+new file mode 100644
+index 0000000..097a424
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Edge.java
+@@ -0,0 +1,33 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import org.apache.hadoop.io.Writable;
++
++/**
++ * Abstract super class for all edges. Forcing the edges to overwrite {@link
++ * #equals(Object)} and {@link #hashCode()}.
++ */
++public abstract class Edge implements Writable {
++
++  @Override
++  public abstract boolean equals(Object o);
++
++  @Override
++  public abstract int hashCode();
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/GeneralGraphElement.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/GeneralGraphElement.java
+new file mode 100644
+index 0000000..184ae4f
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/GeneralGraphElement.java
+@@ -0,0 +1,154 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * Utility class to merge different model classes into one SequenceFile or
++ * multiple SequenceFiles to one Mapper or Reducer
++ * 
++ */
++public class GeneralGraphElement implements
++    WritableComparable<GeneralGraphElement> {
++
++  /**
++   * Constants to distinguish between different types that can be contained by
++   * {@link GeneralGraphElement }
++   */
++  public static enum Type {
++    /**
++     * {@link RepresentativeEdge}
++     */
++    RepresentativeEdge,
++    /**
++     * {@link Vertex}
++     */
++    Vertex,
++    /**
++     * {@link OpenTriad}
++     */
++    OpenTriad,
++    /**
++     * {@link Triangle}
++     */
++    Triangle,
++  }
++
++  /**
++   * Save the type as a {@link Type } field here. Represented as an integer
++   * ordinal in the files
++   */
++  private Type type;
++
++  /**
++   * The true value
++   */
++  @SuppressWarnings("rawtypes")
++  private WritableComparable value;
++
++  /**
++   * Empty constructor for the deserialization methods
++   */
++  public GeneralGraphElement() {
++
++  }
++
++  /**
++   * Construct this container from a real object
++   * 
++   * @param it
++   *          The object to be saved in a general format
++   */
++  @SuppressWarnings("rawtypes")
++  public GeneralGraphElement(WritableComparable it) {
++    value = it;
++    try {
++      type = Type.valueOf(it.getClass().getSimpleName());
++    } catch (Exception e) {
++      throw new IllegalArgumentException(e);
++    }
++  }
++
++  /**
++   * Get the real object
++   * 
++   * @return The real value object which can be cast
++   */
++  @SuppressWarnings("rawtypes")
++  public WritableComparable getValue() {
++    return value;
++  }
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    out.writeInt(type.ordinal());
++    value.write(out);
++  }
++
++  @SuppressWarnings("rawtypes")
++  @Override
++  public void readFields(DataInput in) throws IOException {
++    int ordinal = in.readInt();
++    type = Type.values()[ordinal];
++    switch (type) {
++    case RepresentativeEdge:
++      value = (WritableComparable) new RepresentativeEdge();
++      break;
++    case Vertex:
++      value = new Vertex();
++      break;
++    case OpenTriad:
++      value = new OpenTriad();
++      break;
++    case Triangle:
++      value = new Triangle();
++      break;
++    default:
++      throw new IllegalArgumentException();
++    }
++    value.readFields(in);
++
++  }
++
++  /**
++   * Compares the values to each other if the type is equal
++   * 
++   * @throws IllegalArgumentException
++   *           If the type differs
++   */
++  @SuppressWarnings("unchecked")
++  @Override
++  public int compareTo(GeneralGraphElement o) {
++    if (type.equals(o.type)) {
++      return value.compareTo(o.value);
++    } else {
++      throw new IllegalArgumentException();
++    }
++  };
++  
++  @Override
++  public String toString() {
++    return value.toString();
++  }
++
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Membership.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Membership.java
+new file mode 100644
+index 0000000..1afb2a2
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Membership.java
+@@ -0,0 +1,230 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.TreeSet;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * Key type for various graph algorithm intermediate results. Although this
++ * class can contain an arbitrary number of vertices it usually is used as a
++ * membership key of one or two vertices.
++ * 
++ * The default behavior of membership is an ordered set semantic. But if it is
++ * read from sequence file it shows bag semantics if altered. It can be
++ * overwritten by setting the collection object of vertices and working on it
++ * directly using {@link #setMembers(Collection)} and {@link #getMembers()}
++ * methods.
++ */
++public class Membership implements WritableComparable<Membership> {
++
++  /**
++   * Factory method that is equivalent to the {@link #readFields(DataInput)}
++   * method.
++   * 
++   * @param in
++   *          the sequence file data input where the next instance is serialized
++   * @return a deserialized instance
++   * @throws IOException
++   *           if the sequence file operation throws this exception
++   */
++  public static Membership read(DataInput in) throws IOException {
++    Membership read = new Membership();
++    read.readFields(in);
++    return read;
++  }
++
++  /**
++   * membership collection
++   */
++  private Collection<Vertex> members;
++
++  /**
++   * Constructs an empty {@link Membership} instance
++   */
++  public Membership() {
++  }
++
++  ;
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    if (members != null) {
++      int howmany = members.size();
++      out.writeInt(howmany);
++      Iterator<Vertex> i = members.iterator();
++      while (i.hasNext()) {
++        Vertex m = i.next();
++        m.write(out);
++      }
++    } else {
++      out.writeInt(0);
++    }
++
++  }
++
++  @Override
++  public void readFields(DataInput in) throws IOException {
++
++    int howmany = in.readInt();
++    members = new ArrayList<Vertex>(howmany);
++    while (howmany-- > 0) {
++      Vertex m = Vertex.read(in);
++      members.add(m);
++    }
++
++  }
++
++  /**
++   * Compares this instance to another. This method return 0 if both memberships
++   * are null or both memberships are empty. It returns 0 if both memberships
++   * contain the same vertices returned in the same order by there membership
++   * collection objects.
++   */
++  @Override
++  public int compareTo(Membership o) {
++    int compareTo = 0;
++    if (members != null) {
++      if (o.members != null) {
++        Iterator<Vertex> i = members.iterator();
++        Iterator<Vertex> oi = o.members.iterator();
++        while (true) {
++          boolean n = i.hasNext();
++          boolean on = i.hasNext();
++          if (n && on) {
++            // compare member by member
++            compareTo = i.next().compareTo(oi.next());
++            if (compareTo != 0) {
++              return compareTo; // break on first difference
++            } else {
++              continue;
++            }
++          } else if (!n && on) {
++            // we have fewer members than the other
++            return Integer.MIN_VALUE;
++          } else if (n && !on) {
++            // the other has fewer members
++            return Integer.MAX_VALUE;
++          } else {
++            return 0;
++          }
++        }
++      } else {
++        // the other has fewer
++        return Integer.MAX_VALUE;
++      }
++    } else {
++      // we have no members
++      if (o.members == null) {
++        // both no members
++        return 0;
++      } else {
++        if (o.members.size() > 0) {
++          // we have fewer
++          return Integer.MIN_VALUE;
++        } else {
++          // both no members
++          return 0;
++        }
++      }
++    }
++  }
++
++  /**
++   * Sets the membership collection to the membership
++   * <code>WritableComparable</code>. The <code>Collection</code> will be used
++   * directly. This way it is possible to overwrite the default ordered set
++   * semantic of {@link Membership}.
++   * 
++   * @param members
++   *          the collection to be used to contain the objects
++   * @return this
++   */
++  public Membership setMembers(Collection<Vertex> members) {
++    this.members = members;
++    return this;
++  }
++
++  /**
++   * Returns the membership collection. If not overwritten this is an ordered
++   * set of vertices.
++   * 
++   * @return the membership collection
++   */
++  public Collection<Vertex> getMembers() {
++    return members;
++  }
++
++  /**
++   * Set a member to the membership collection. If this is the first call and no
++   * membership collection had been set via
++   * {@link Membership#setMembers(Collection)} an ordered set will be created to
++   * contain the member.
++   * 
++   * @param m
++   * @return this for convenience of chained invocation
++   */
++  public Membership addMember(Vertex m) {
++    if (members == null) {
++      members = new TreeSet<Vertex>();
++    }
++    members.add(m);
++    return this;
++  }
++
++  /**
++   * Equals another {@link Membership} if both contain the same vertices in the
++   * same order.
++   */
++  @Override
++  public boolean equals(Object o) {
++    if (o instanceof Membership) {
++      return this.compareTo((Membership) o) == 0;
++    } else {
++      return false;
++    }
++  }
++
++  /**
++   * The hash code returned will be a product of all hash codes of all vertices.
++   */
++  @Override
++  public int hashCode() {
++    int hash = 0;
++    if (members != null) {
++      Iterator<Vertex> i = members.iterator();
++      hash = 1;
++      while (i.hasNext()) {
++        hash = hash * i.next().hashCode();
++      }
++    }
++    return hash;
++  }
++  
++  @Override
++  public String toString() {
++    return members.toString();
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/OpenTriad.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/OpenTriad.java
+new file mode 100644
+index 0000000..abd3156
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/OpenTriad.java
+@@ -0,0 +1,156 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++import java.util.Vector;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * Data type for open triads which are an intermediate result on triangle
++ * enumeration.
++ * 
++ */
++public class OpenTriad implements WritableComparable<OpenTriad> {
++
++  /**
++   * Make a deep copy of the stated object.
++   * 
++   * @param orig
++   *          The object to be copied
++   * @return A deep copy
++   */
++  public static OpenTriad duplicate(OpenTriad orig) {
++    OpenTriad dup = new OpenTriad();
++    dup.apex = Vertex.duplicate(orig.apex);
++    dup.edges = new Vector<RepresentativeEdge>(orig.edges.size());
++    for (RepresentativeEdge e : orig.edges) {
++      dup.edges.add(RepresentativeEdge.duplicate(e));
++    }
++    return dup;
++  }
++
++  /**
++   * the apex of the instance
++   */
++  private Vertex apex;
++  /**
++   * the edges of the instance
++   */
++  protected Vector<RepresentativeEdge> edges;
++
++  /**
++   * Construct an open triad
++   */
++  public OpenTriad() {
++    edges = new Vector<RepresentativeEdge>(2);
++  }
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    apex.write(out);
++    int c = edges.size();
++    out.writeInt(c);
++    for (RepresentativeEdge edge : edges) {
++      edge.write(out);
++    }
++
++  }
++
++  @Override
++  public void readFields(DataInput in) throws IOException {
++    apex = new Vertex();
++    apex.readFields(in);
++    int c = in.readInt();
++    edges = new Vector<RepresentativeEdge>(c);
++    while (c-- > 0) {
++      RepresentativeEdge edge = new RepresentativeEdge();
++      edge.readFields(in);
++      edges.add(edge);
++    }
++
++  }
++
++  /**
++   * Set the apex of the triad.
++   * 
++   * @param v
++   *          The vertex the apex is to be set to
++   */
++  public void setApex(Vertex v) {
++    apex = v;
++  }
++
++  /**
++   * Add an edge to the edges
++   * 
++   * @param edge
++   *          The edge to be added
++   */
++  public void addEdge(RepresentativeEdge edge) {
++    edges.add(edge);
++  }
++
++  /**
++   * Get the apex of the triad
++   * 
++   * @return the apex of this instance
++   */
++  public Vertex getApex() {
++    return apex;
++  }
++
++  /**
++   * Get the edges that were set to the instance.
++   * 
++   * @return a vector of edges or an empty vector if no edges were set
++   */
++  public Vector<RepresentativeEdge> getEdges() {
++    return edges;
++  }
++
++  @Override
++  public boolean equals(Object o) {
++    if (o instanceof OpenTriad) {
++      OpenTriad t = (OpenTriad) o;
++      // TODO check if this holds
++      return apex.equals(t.apex) && edges.equals(t.edges);
++    }
++    return false;
++  }
++
++  @Override
++  public int compareTo(OpenTriad o) {
++    int c = apex.compareTo(o.apex);
++    if (c == 0) {
++      Membership m = new Membership().addMember(edges.get(0).getVertex0()).addMember(edges.get(0).getVertex1()).addMember(edges.get(1).getVertex0()).addMember(edges.get(1).getVertex1());
++      Membership o_m = new Membership().addMember(o.edges.get(0).getVertex0()).addMember(o.edges.get(0).getVertex1()).addMember(o.edges.get(1).getVertex0()).addMember(o.edges.get(1).getVertex1());
++      c = m.compareTo(o_m);
++    }
++    return c;
++  }
++  
++  @Override
++  public String toString() {
++    return String.format("∠(%s {%s | %s})", apex, edges.get(0), edges.get(1));
++  }
++
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Parser.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Parser.java
+new file mode 100644
+index 0000000..e347464
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Parser.java
+@@ -0,0 +1,41 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.util.Vector;
++
++import org.apache.hadoop.io.Text;
++
++/**
++ * Interface to be implemented in order to parse the graph input file of any job
++ * to vertices and edges.
++ * 
++ */
++public interface Parser {
++
++  /**
++   * This method is called on each line of the input file.
++   * 
++   * @param description
++   *          The hole line
++   * @return A list of vertices that describe the edge or <tt>null</tt> if no
++   *         edge was described a that specific line
++   */
++  public Vector<Vertex> parse(Text description);
++
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/RepresentativeEdge.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/RepresentativeEdge.java
+new file mode 100644
+index 0000000..ab32b21
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/RepresentativeEdge.java
+@@ -0,0 +1,207 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * A representative edge to be operated on in several graph algorithms.
++ */
++public class RepresentativeEdge extends Edge implements WritableComparable<RepresentativeEdge> {
++
++  /**
++   * Make a deep copy of the stated object.
++   * 
++   * @param orig
++   *          The object to be copied
++   * @return A deep copy
++   */
++  public static RepresentativeEdge duplicate(RepresentativeEdge orig) {
++    RepresentativeEdge dup = new RepresentativeEdge();
++    dup.d0 = orig.d0;
++    dup.d1 = orig.d1;
++    dup.v0 = Vertex.duplicate(orig.v0);
++    dup.v1 = Vertex.duplicate(orig.v1);
++    return dup;
++  }
++  /**
++   * the vertices
++   */
++  protected Vertex v0, v1;
++  /**
++   * its degrees
++   */
++  private long d0 = Integer.MIN_VALUE, d1 = Integer.MIN_VALUE;
++
++  /**
++   * Construct an empty instance
++   */
++  public RepresentativeEdge() {
++  }
++
++  /**
++   * Constructs a edge between the stated vertices.
++   * 
++   * @param v0
++   *          The first vertex
++   * @param v1
++   *          The second vertex
++   */
++  public RepresentativeEdge(Vertex v0, Vertex v1) {
++    this.v0 = v0;
++    this.v1 = v1;
++  }
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    v0.write(out);
++    out.writeLong(d0);
++    v1.write(out);
++    out.writeLong(d1);
++  }
++
++  @Override
++  public void readFields(DataInput in) throws IOException {
++
++    v0 = new Vertex();
++    v0.readFields(in);
++    d0 = in.readLong();
++
++    v1 = new Vertex();
++    v1.readFields(in);
++    d1 = in.readLong();
++
++  }
++
++  /**
++   * Returns true if the other instance is an edge containing the same vertices
++   * in same order.
++   */
++  @Override
++  public boolean equals(Object o) {
++    if (o instanceof RepresentativeEdge) {
++      RepresentativeEdge e = (RepresentativeEdge) o;
++      if (v0.equals(e.v0) && v1.equals(e.v1)) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  /**
++   * Set the first vertex to <code>v</code>
++   * 
++   * @param v
++   *          The vertex the first attribute it to be set to
++   */
++  public void setVertex0(Vertex v) {
++    v0 = v;
++  }
++
++  /**
++   * Set the second vertex to <code>v</code>
++   * 
++   * @param v
++   *          The vertex the second attribute it to be set to
++   */
++  public void setVertex1(Vertex v) {
++    v1 = v;
++  }
++
++  /**
++   * Get the first vertex of this edge.
++   * 
++   * @return The first vertex
++   */
++  public Vertex getVertex0() {
++    return v0;
++  }
++
++  /**
++   * Get the second vertex of this edge.
++   * 
++   * @return The second vertex
++   */
++  public Vertex getVertex1() {
++    return v1;
++  }
++
++  /**
++   * The hash code is the product of the instance's vertices ids.
++   */
++  @Override
++  public int hashCode() {
++    return 1 * v0.hashCode() * v1.hashCode();
++  }
++
++  /**
++   * Augment this edge with degree information for the vertex <code>v</code>
++   * 
++   * @param v
++   *          The vertex to be augmented.
++   * @param degree
++   *          The augmentation value degree
++   */
++  public void setDegree(Vertex v, Long degree) {
++    if (v0.equals(v)) {
++      d0 = degree;
++    } else if (v1.equals(v)) {
++      d1 = degree;
++    } else {
++      throw new IllegalArgumentException();
++    }
++  }
++
++  /**
++   * Get a degree for a vertex of this edge
++   * 
++   * @param v
++   *          the vertex which is the augmented degree to be looked up for
++   * @return the degree if it has been augmented before
++   * @throws IllegalArgumentException
++   *           if the vertex <code>v</code> does not belong to this edge
++   */
++  public long getDegree(Vertex v) throws IllegalArgumentException {
++    if (v0.equals(v)) {
++      return d0;
++    } else if (v1.equals(v)) {
++      return d1;
++    } else {
++      throw new IllegalArgumentException();
++    }
++  }
++    
++  @Override
++  public String toString() {
++    return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(), (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(), (d1 >= 0 ? new Long(d1).toString() : "-"));
++  }
++
++  /**
++   * Compares two edges by {@link Membership}
++   */
++  @Override
++  public int compareTo(RepresentativeEdge o) {
++    Membership i = new Membership().addMember(v0).addMember(v1);
++    Membership it = new Membership().addMember(o.v0).addMember(o.v1);
++    return i.compareTo(it);
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/SimpleParser.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/SimpleParser.java
+new file mode 100644
+index 0000000..421a844
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/SimpleParser.java
+@@ -0,0 +1,59 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.util.TreeSet;
++import java.util.Vector;
++
++import org.apache.hadoop.io.Text;
++
++/**
++ * Simple parser for graph input files. It takes edges as comma separated list
++ * of vertices. For example a simple input file could look like this:
++ * 
++ * <pre>
++ *    1,2
++ *    2,3
++ *    3,1
++ * </pre>
++ * 
++ */
++public class SimpleParser implements Parser {
++
++  /**
++   * Parses a simple graph input file that contains a comma separated list of
++   * numbers representing the vertices. It silently ignores all lines that do
++   * not match the patter <tt>A,B</tt>
++   */
++  @Override
++  public Vector<Vertex> parse(Text description) {
++    try {
++      String[] splits = description.toString().split(",");
++      TreeSet<Vertex> set = new TreeSet<Vertex>();
++      for (String s : splits) {
++        final long d = Long.parseLong(s);
++        Vertex v = new Vertex(d);
++        set.add(v);
++      }
++      Vector<Vertex> vec = new Vector<Vertex>(set);
++      return vec;
++    } catch (Exception e) {
++      return null;
++    }
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Triangle.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Triangle.java
+new file mode 100644
+index 0000000..53ac953
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Triangle.java
+@@ -0,0 +1,145 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++import java.util.Iterator;
++import java.util.Set;
++import java.util.TreeSet;
++import java.util.Vector;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * Model class for triangles. The triangle is represented through the order set
++ * of its three edges. There is no restriction on the number of
++ * {@link RepresentativeEdge}s in this class but the methods
++ * {@link #equals(Object)} and {@link #compareTo(Triangle)} will both throw
++ * {@link IllegalArgumentException} if not both instances contain exactly three
++ * edges.
++ */
++public class Triangle implements WritableComparable<Triangle> {
++
++  /**
++   * the three edges of the triangle
++   */
++  private Set<RepresentativeEdge> edges;
++
++  public Triangle() {
++    edges = new TreeSet<RepresentativeEdge>();
++  }
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    int c = edges.size();
++    out.writeInt(c);
++    for (RepresentativeEdge edge : edges) {
++      edge.write(out);
++    }
++
++  }
++
++  @Override
++  public void readFields(DataInput in) throws IOException {
++    int c = in.readInt();
++    edges = new TreeSet<RepresentativeEdge>();
++    while (c-- > 0) {
++      RepresentativeEdge edge = new RepresentativeEdge();
++      edge.readFields(in);
++      edges.add(edge);
++    }
++  }
++
++  /**
++   * Add an edge to this instance
++   * 
++   * @param edge
++   *          The edge to be added
++   * @return this for convenient consecutive calls
++   */
++  public Triangle addEdge(RepresentativeEdge edge) {
++    edges.add(edge);
++    return this;
++  }
++
++  /**
++   * Get the edges of this instance
++   * 
++   * @return The edges
++   */
++  public Set<RepresentativeEdge> getEdges() {
++    return edges;
++  }
++
++  /**
++   * Compares this instance to another as a sequence of comparisons of the
++   * edges.
++   */
++  @Override
++  public int compareTo(Triangle o) {
++    int c = 0;
++    if (!(edges.size() == 3) && !(o.edges.size() == 3)) {
++      throw new IllegalArgumentException();
++    }
++    Iterator<RepresentativeEdge> i = edges.iterator();
++    Iterator<RepresentativeEdge> it = o.edges.iterator();
++    while (i.hasNext()) {
++      c = i.next().compareTo(it.next());
++      if (c == 0) {
++        continue;
++      } else {
++        break;
++      }
++    }
++    return c;
++  }
++
++  @Override
++  public boolean equals(Object o) {
++    return (o instanceof Triangle && compareTo((Triangle) o) == 0);
++  }
++
++  /**
++   * The hash code is the product of the triangles's edge ids.
++   */
++  @Override
++  public int hashCode() {
++    int hash = 1;
++    Iterator<RepresentativeEdge> i = edges.iterator();
++    while (i.hasNext()) {
++      hash *= i.next().hashCode();
++    }
++    return hash;
++  }
++
++  @Override
++  public String toString() {
++    Vector<RepresentativeEdge> edges = new Vector<RepresentativeEdge>(getEdges());
++    Membership m = new Membership().addMember(edges.get(0).getVertex0())
++        .addMember(edges.get(0).getVertex1())
++        .addMember(edges.get(1).getVertex0())
++        .addMember(edges.get(1).getVertex1())
++        .addMember(edges.get(2).getVertex0())
++        .addMember(edges.get(2).getVertex1());
++    Iterator<Vertex> i = m.getMembers().iterator();
++    return String.format("Δ(%s,%s,%s)", i.next(), i.next(), i.next());
++    
++  }
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Vertex.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Vertex.java
+new file mode 100644
+index 0000000..b219127
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/Vertex.java
+@@ -0,0 +1,140 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++import java.io.DataInput;
++import java.io.DataOutput;
++import java.io.IOException;
++
++import org.apache.hadoop.io.WritableComparable;
++
++/**
++ * Class representing a vertex in the graph to be analyzed.
++ * 
++ */
++public class Vertex implements WritableComparable<Vertex> {
++
++  /**
++   * Make a deep copy of the stated object.
++   * 
++   * @param orig
++   *          The object to be copied
++   * @return A deep copy
++   */
++  public static Vertex duplicate(Vertex orig) {
++    Vertex dup = new Vertex();
++    dup.id = orig.id;
++    return dup;
++  }
++  
++  public static Vertex read(DataInput in) throws IOException {
++    Vertex v = new Vertex();
++    v.readFields(in);
++    return v;
++  }
++
++  @Override
++  public void readFields(DataInput in) throws IOException {
++    this.id = in.readLong();
++  }
++
++  /**
++   * the id to identify this instance
++   */
++  private long id;
++
++  /**
++   * Constructs an empty vertex
++   */
++  public Vertex() {
++  }
++
++  /**
++   * Construct a vertex with <code>id</code> set to parameter <code>id</code>
++   * 
++   * @param id
++   *          The Vertex's id
++   */
++  public Vertex(long id) {
++    this.id = id;
++  }
++
++  @Override
++  public void write(DataOutput out) throws IOException {
++    out.writeLong(this.id);
++  }
++
++  /**
++   * Set the <code>id</code> to parameter <code>id</code>
++   * 
++   * @param id
++   *          The <code>id</code> to apply to this instance
++   */
++  public void setId(long id) {
++    this.id = id;
++  }
++
++  /**
++   * Get the id of the vertex
++   * 
++   * @return The id of the vertex
++   */
++  public long getId() {
++    return this.id;
++  }
++
++  /**
++   * Compares this instance to another according to the <code>id</code>
++   * attribute.
++   */
++  @Override
++  public int compareTo(Vertex o) {
++    return new Long(getId()).compareTo(new Long(o.getId()));
++  }
++
++  /**
++   * Compares this instance to another according to the <code>id</code>
++   * attribute. The other instance can be a {@link VertexWithDegree} in which
++   * case the <code>id</code> is compared as well. Different degrees are
++   * silently ignored.
++   */
++  @Override
++  public boolean equals(Object o) {
++    if (o instanceof Vertex) {
++      return ((Vertex) o).id == id;
++    } else if (o instanceof VertexWithDegree) {
++      return ((VertexWithDegree) o).getVertex().equals(this);
++    } else {
++      return false;
++    }
++  }
++
++  /**
++   * The hash code the <code>id</code> attribute
++   */
++  @Override
++  public int hashCode() {
++    return (int) id;
++  }
++  
++  @Override
++  public String toString() {
++    return new Long(id).toString();
++  }
++
++}
+diff --git a/ktrusses-core/src/main/java/org/apache/mahout/graph/model/VertexWithDegree.java b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/VertexWithDegree.java
+new file mode 100644
+index 0000000..3cf740d
+--- /dev/null
++++ b/ktrusses-core/src/main/java/org/apache/mahout/graph/model/VertexWithDegree.java
+@@ -0,0 +1,100 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.model;
++
++/**
++ * Container for a vertex augmented with a degree. The degree is interpreted as
++ * the count of edges that start or end at the vertex.
++ * 
++ */
++public class VertexWithDegree implements Comparable<VertexWithDegree> {
++
++  /**
++   * the degree of this instance
++   */
++  private long d;
++  /**
++   * the vertex of this instance
++   */
++  private Vertex v;
++
++  /**
++   * Create an instance of an augmented vertex.
++   * 
++   * @param v
++   *          The vertex to be augmented
++   * @param d
++   *          The degree to be the augmentation
++   */
++  public VertexWithDegree(Vertex v, long d) {
++    this.d = d;
++    this.v = v;
++  }
++
++  /**
++   * Compares the degree of this instance to the other and returns a negative
++   * number if this instance's degree is lower, 0 if the degrees equal and a
++   * positive number if this instance's degree is bigger than the other's.
++   */
++  @Override
++  public int compareTo(VertexWithDegree o) {
++    int c = new Long(d).compareTo(new Long(o.d));
++    return c;
++  }
++
++  /**
++   * This method returns true if the other instance is either a
++   * {@link VertexWithDegree } with degree equal to this instance and vertex
++   * equal to this instance's vertex or other instance is a {@link Vertex} and
++   * equals this instance's vertex.
++   */
++  @Override
++  public boolean equals(Object o) {
++    if (o instanceof VertexWithDegree) {
++      int c = compareTo((VertexWithDegree) o);
++      return c == 0 && v.equals(((VertexWithDegree) o).v);
++    } else if (o instanceof Vertex) {
++      return ((Vertex) o).equals(this);
++    } else {
++      return false;
++    }
++  }
++
++  /**
++   * Getter for the <code>v</code> attribute.
++   * 
++   * @return This instance's vertex
++   */
++  public Vertex getVertex() {
++    return v;
++  }
++
++  /**
++   * Getter for the <code>d</code> attribute
++   * 
++   * @return The degree of this instance
++   */
++  public long getDegree() {
++    return d;
++  }
++  
++  @Override
++  public String toString() {
++    return String.format("%s (%d)",v, d);
++  }
++}
+diff --git a/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/common/package.html b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/common/package.html
+new file mode 100644
+index 0000000..3333aed
+--- /dev/null
++++ b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/common/package.html
+@@ -0,0 +1,44 @@
++<!--
++
++    Licensed to the Apache Software Foundation (ASF) under one or more
++    contributor license agreements.  See the NOTICE file distributed with
++    this work for additional information regarding copyright ownership.
++    The ASF licenses this file to You under the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
++<html>
++<head>
++<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++<title>Tasks that are common to many graph algorithms</title>
++</head>
++<body>
++	This package contains some common tasks for graph algorithms. It
++	proposes a standard tool chain to process a graph:
++	<ol>
++		<li>Simplify the graph with {@link
++			org.apache.mahout.graph.common.SimplifyGraphJob}. Parse a text file
++			to a small representation of edges (we drop the vertices without
++			edges) without loops and duplicate edges. After this step the graph
++			is interpreted as an undirected graph.</li>
++		<li>Augment the graph with vertex degrees using {@link
++			org.apache.mahout.graph.common.AugmentGraphWithDegreesJob}. This
++			ensures some stability and can be achieved with two MapReduce
++			pipelines.</li>
++		<li>Enumerate the triangles of the augmented simplified graph
++			with {@link org.apache.mahout.graph.common.EnumerateTrianglesJob}
++			which is a good starting point for further processing.</li>
++	</ol>
++</body>
++</html>
+\ No newline at end of file
+diff --git a/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/components/package.html b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/components/package.html
+new file mode 100644
+index 0000000..e0a6bab
+--- /dev/null
++++ b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/components/package.html
+@@ -0,0 +1,40 @@
++<!--
++
++    Licensed to the Apache Software Foundation (ASF) under one or more
++    contributor license agreements.  See the NOTICE file distributed with
++    this work for additional information regarding copyright ownership.
++    The ASF licenses this file to You under the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
++<html>
++<head>
++<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++<title>Graph algorithms that return components</title>
++</head>
++<body>
++	This package contains two powerful graph algorithms that return
++	components:
++	<ol>
++		<li>{@link org.apache.mahout.graph.components.FindComponentsJob}
++			which finds the components of a graph.</li>
++		<li>{@link org.apache.mahout.graph.components.FindKTrussesJob}
++			which finds the <code>k</code>-trusses in a graph. A <code>k</code>-truss
++			is a nontrivial, single-component maximal subgraph, such that every
++			edge is contained in at least <code>k-2</code> triangles in the
++			subgraph. The algorithm was proposed in the IEEE paper <em>J.
++				Cohen 2009: "Graph Twiddling in a MapReduce World"</em>.</li>
++	</ol>
++</body>
++</html>
+\ No newline at end of file
+diff --git a/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/model/package.html b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/model/package.html
+new file mode 100644
+index 0000000..98a3254
+--- /dev/null
++++ b/ktrusses-core/src/main/javadoc/org/apache/mahout/graph/model/package.html
+@@ -0,0 +1,29 @@
++<!--
++
++    Licensed to the Apache Software Foundation (ASF) under one or more
++    contributor license agreements.  See the NOTICE file distributed with
++    this work for additional information regarding copyright ownership.
++    The ASF licenses this file to You under the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
++<html>
++<head>
++<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++<title>Graph model classes</title>
++</head>
++<body>Model classes that are common to all the graph algorithms
++	in <code>org.apache.mahout.graph</code>.
++</body>
++</html>
+\ No newline at end of file
+diff --git a/ktrusses-core/src/main/javadoc/overview.html b/ktrusses-core/src/main/javadoc/overview.html
+new file mode 100644
+index 0000000..6738db5
+--- /dev/null
++++ b/ktrusses-core/src/main/javadoc/overview.html
+@@ -0,0 +1,44 @@
++<!--
++
++    Licensed to the Apache Software Foundation (ASF) under one or more
++    contributor license agreements.  See the NOTICE file distributed with
++    this work for additional information regarding copyright ownership.
++    The ASF licenses this file to You under the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
++<html>
++<head>
++<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
++<title>Find k-trusses in a graph.</title>
++</head>
++<body>
++	This package brings some graph algorithms to
++	<em>Mahout</em>.
++	<ol>
++		<li><code>org.apache.mahout.graph.common</code> for a tool chain to
++			prepare arbitrary graphs</li>
++		<li><code>org.apache.mahout.graph.model</code> to get to know the
++			formats to use the results for further processing</li>
++		<li>{@link org.apache.mahout.graph.components.FindComponentsJob}
++			which finds the components of a graph.</li>
++		<li>{@link org.apache.mahout.graph.components.FindKTrussesJob}
++			which finds the <code>k</code>-trusses in a graph. A <code>k</code>-truss
++			is a nontrivial, single-component maximal subgraph, such that every
++			edge is contained in at least <code>k-2</code> triangles in the
++			subgraph. The algorithm was proposed in the IEEE paper <em>J.
++				Cohen 2009: "Graph Twiddling in a MapReduce World"</em>.</li>
++	</ol>
++</body>
++</html>
+\ No newline at end of file
+diff --git a/ktrusses-core/src/test/java/org/apache/mahout/graph/SimplifyGraph.java b/ktrusses-core/src/test/java/org/apache/mahout/graph/SimplifyGraph.java
+new file mode 100644
+index 0000000..f0bdc0d
+--- /dev/null
++++ b/ktrusses-core/src/test/java/org/apache/mahout/graph/SimplifyGraph.java
+@@ -0,0 +1,27 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph;
++
++import org.apache.mahout.graph.common.TestSimplifyGraph;
++import org.junit.runner.RunWith;
++import org.junit.runners.Suite;
++
++@RunWith(Suite.class)
++@Suite.SuiteClasses({TestSimplifyGraph.class})
++public class SimplifyGraph {
++}
+diff --git a/ktrusses-core/src/test/java/org/apache/mahout/graph/common/LexicalVertexParser.java b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/LexicalVertexParser.java
+new file mode 100644
+index 0000000..405b957
+--- /dev/null
++++ b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/LexicalVertexParser.java
+@@ -0,0 +1,55 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.util.TreeSet;
++import java.util.Vector;
++
++import org.apache.hadoop.io.Text;
++import org.apache.log4j.Logger;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.Vertex;
++
++/**
++ * A simple parser to demonstrate parsing of lexicographic graphs.
++ */
++public class LexicalVertexParser implements Parser {
++
++  private static Logger log = Logger.getLogger(LexicalVertexParser.class);
++  
++  private static String alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
++
++  @Override
++  public Vector<Vertex> parse(Text description) {
++    try {
++      String[] splits = description.toString().split(",");
++      TreeSet<Vertex> set = new TreeSet<Vertex>();
++      for (String s : splits) {
++        final long d = alpha.indexOf(s.substring(0, 1));
++        Vertex v = new Vertex(d);
++        set.add(v);
++      }
++      Vector<Vertex> vec = new Vector<Vertex>(set);
++      log.info(String.format(
++          "Parsed line `%s`. Created Vertices %s.", description, vec));
++      return vec;
++    } catch (Exception e) {
++      return null;
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestAugmentGraphWithDegrees.java b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestAugmentGraphWithDegrees.java
+new file mode 100644
+index 0000000..c29c4f6
+--- /dev/null
++++ b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestAugmentGraphWithDegrees.java
+@@ -0,0 +1,159 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.Vector;
++
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.fs.FileStatus;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.io.Text;
++import org.apache.hadoop.mapreduce.TaskAttemptContext;
++import org.apache.hadoop.mapreduce.TaskAttemptID;
++import org.apache.hadoop.mapreduce.lib.input.FileSplit;
++import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
++import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
++import org.apache.log4j.Level;
++import org.apache.log4j.Logger;
++import org.apache.mahout.common.MahoutTestCase;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.SimpleParser;
++import org.apache.mahout.graph.model.Vertex;
++import org.junit.Before;
++import org.junit.Test;
++
++import com.google.common.io.Resources;
++
++public class TestAugmentGraphWithDegrees extends MahoutTestCase {
++
++  @Before
++  public void logLevel() {
++    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
++  }
++
++  @Test
++  public void testAugmentGraphWithDegreesGraphJob() throws Exception {
++
++    // run simplification first
++    File inputFile = new File(Resources.getResource("augmenttest.csv").toURI());
++    assertTrue(inputFile.canRead());
++    File outputDir = getTestTempDir("simplifytest-out");
++    File tempDir = getTestTempDir("simplifytest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++    Configuration conf = new Configuration();
++    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
++    simplifyGraphJob.setConf(conf);
++    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
++        "--output", outputDir.getAbsolutePath(), "--tempDir",
++        tempDir.getAbsolutePath() });
++
++    FileSystem sys = FileSystem.get(conf);
++
++    File intermedediateFile = new File(outputDir, "part-r-00000");
++
++    // augment the simplified graph
++    AugmentGraphWithDegreesJob augmentJob = new AugmentGraphWithDegreesJob();
++    augmentJob.setConf(conf);
++    assertTrue(intermedediateFile.canRead());
++
++    outputDir = getTestTempDir("augmenttest-out");
++    tempDir = getTestTempDir("augmenttest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++
++    augmentJob.run(new String[] { "--input",
++        intermedediateFile.getAbsolutePath(), "--output",
++        outputDir.getAbsolutePath(), "--tempDir", tempDir.getAbsolutePath() });
++
++    Path output = new Path(
++        new File(outputDir, "part-r-00000").getAbsolutePath());
++
++    FileStatus outputStat = sys.getFileStatus(output);
++
++    HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
++        inputFile, sys, conf);
++    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
++    SequenceFileRecordReader<Membership, GeneralGraphElement> r = new SequenceFileRecordReader<Membership, GeneralGraphElement>();
++    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (r.nextKeyValue()) {
++      Membership m = r.getCurrentKey();
++      RepresentativeEdge e = (RepresentativeEdge) r.getCurrentValue().getValue();
++      System.out.println(String.format(
++          "Job returned %s binned under membership %s. Testing map...", e, m));
++      RepresentativeEdge test = edges.remove(m);
++      assertEquals(test, e);
++      assertEquals(test.getDegree(test.getVertex0()),
++          e.getDegree(e.getVertex0()));
++      assertEquals(test.getDegree(test.getVertex1()),
++          e.getDegree(e.getVertex1()));
++    }
++    assertTrue(edges.isEmpty());
++  }
++
++  private HashMap<Membership, RepresentativeEdge> getTestFileContents(
++      File file, FileSystem sys, Configuration conf) throws IOException {
++    Path path = new Path(file.getAbsolutePath());
++    FileStatus stat = sys.getFileStatus(path);
++    FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
++    Parser parser = new SimpleParser();
++    HashMap<Membership, RepresentativeEdge> edges = new HashMap<Membership, RepresentativeEdge>();
++    LineRecordReader l = new LineRecordReader();
++    l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (l.nextKeyValue()) {
++      Text t = l.getCurrentValue();
++      Vector<Vertex> members = parser.parse(t);
++      if (members != null && members.size() > 1)
++        edges.put(new Membership().setMembers(members), new RepresentativeEdge(
++            members.get(0), members.get(1)));
++    }
++    HashMap<Long, Long> degrees = new HashMap<Long, Long>();
++    for (RepresentativeEdge edge : edges.values()) {
++      Vertex v0 = edge.getVertex0();
++      Long d0 = degrees.get(v0.getId());
++      if (d0 == null || d0 == 0) {
++        d0 = 1L;
++      } else {
++        d0 += 1L;
++      }
++      degrees.put(v0.getId(), d0);
++      Vertex v1 = edge.getVertex1();
++      Long d1 = degrees.get(v1.getId());
++      if (d1 == null || d1 == 0) {
++        d1 = 1L;
++      } else {
++        d1 += 1L;
++      }
++      degrees.put(v1.getId(), d1);
++    }
++    for (RepresentativeEdge edge : edges.values()) {
++      Vertex v0 = edge.getVertex0();
++      edge.setDegree(v0, degrees.get(v0.getId()));
++      Vertex v1 = edge.getVertex1();
++      edge.setDegree(v1, degrees.get(v1.getId()));
++    }
++    return edges;
++  }
++}
+diff --git a/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestEnumerateTriangles.java b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestEnumerateTriangles.java
+new file mode 100644
+index 0000000..3f0ab37
+--- /dev/null
++++ b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestEnumerateTriangles.java
+@@ -0,0 +1,180 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Vector;
++
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.fs.FileStatus;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.io.Text;
++import org.apache.hadoop.mapreduce.TaskAttemptContext;
++import org.apache.hadoop.mapreduce.TaskAttemptID;
++import org.apache.hadoop.mapreduce.lib.input.FileSplit;
++import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
++import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
++import org.apache.log4j.Level;
++import org.apache.log4j.Logger;
++import org.apache.mahout.common.MahoutTestCase;
++import org.apache.mahout.graph.model.GeneralGraphElement;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.SimpleParser;
++import org.apache.mahout.graph.model.Triangle;
++import org.apache.mahout.graph.model.Vertex;
++import org.junit.Before;
++import org.junit.Test;
++
++import com.google.common.io.Resources;
++
++public class TestEnumerateTriangles extends MahoutTestCase {
++
++  @Before
++  public void logLevel() {
++    Logger.getRootLogger().setLevel(Level.WARN);
++    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
++  }
++
++  @Test
++  public void testEnumerateTrianglesJob() throws Exception {
++
++    // run simplification first
++    File inputFile = new File(Resources.getResource("trianglestest.csv").toURI());
++    assertTrue(inputFile.canRead());
++    File outputDir = getTestTempDir("simplifytest-out");
++    File tempDir = getTestTempDir("simplifytest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++    Configuration conf = new Configuration();
++    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
++    simplifyGraphJob.setConf(conf);
++    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
++        "--output", outputDir.getAbsolutePath(), "--tempDir",
++        tempDir.getAbsolutePath() });
++
++    FileSystem sys = FileSystem.get(conf);
++
++    File intermedediateFile = new File(outputDir, "part-r-00000");
++
++    // augment the simplified graph
++    AugmentGraphWithDegreesJob augmentJob = new AugmentGraphWithDegreesJob();
++    augmentJob.setConf(conf);
++    assertTrue(intermedediateFile.canRead());
++
++    outputDir = getTestTempDir("augmenttest-out");
++    tempDir = getTestTempDir("augmenttest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++
++    augmentJob.run(new String[] { "--input",
++        intermedediateFile.getAbsolutePath(), "--output",
++        outputDir.getAbsolutePath(), "--tempDir", tempDir.getAbsolutePath() });
++
++    intermedediateFile = new File(outputDir, "part-r-00000");
++
++    // enumerate the triangles
++    EnumerateTrianglesJob enumerateJob = new EnumerateTrianglesJob();
++    enumerateJob.setConf(conf);
++    assertTrue(intermedediateFile.canRead());
++
++    outputDir = getTestTempDir("trianglestest-out");
++    tempDir = getTestTempDir("trianglestest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++
++    enumerateJob.run(new String[] { "--input",
++        intermedediateFile.getAbsolutePath(), "--output",
++        outputDir.getAbsolutePath(), "--tempDir", tempDir.getAbsolutePath() });
++
++    Path output = new Path(
++        new File(outputDir, "part-r-00000").getAbsolutePath());
++
++    FileStatus outputStat = sys.getFileStatus(output);
++
++    HashMap<Membership, Triangle> triangles = getTestFileContents(
++        inputFile, sys, conf);
++    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
++    SequenceFileRecordReader<Membership, GeneralGraphElement> r = new SequenceFileRecordReader<Membership, GeneralGraphElement>();
++    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    
++    while (r.nextKeyValue()) {
++      Membership m = r.getCurrentKey();
++      Triangle t = (Triangle) r.getCurrentValue().getValue();
++      
++      System.out.println(String.format(
++          "Job returned %s binned under membership %s. Testing map...", t, m));
++      Triangle test = triangles.remove(m);
++      assertEquals(test, t);
++
++    }
++    assertTrue(String.format("%s should have been empty.", triangles), triangles.isEmpty());
++  }
++
++  private HashMap<Membership, Triangle> getTestFileContents(File file, FileSystem sys,
++      Configuration conf) throws IOException {
++    Path path = new Path(file.getAbsolutePath());
++    FileStatus stat = sys.getFileStatus(path);
++    FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
++    Parser parser = new SimpleParser();
++    HashMap<Vertex, Membership> vertexes = new HashMap<Vertex, Membership>();
++    LineRecordReader l = new LineRecordReader();
++    l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (l.nextKeyValue()) {
++      Text t = l.getCurrentValue();
++      Vector<Vertex> members = parser.parse(t);
++      if (members != null && members.size() > 1) {
++        for (Vertex vertex : members) {
++          Membership neighbours = vertexes.containsKey(vertex) ? vertexes
++              .get(vertex) : new Membership();
++          for (Vertex v : members)
++            if (!v.equals(vertex))
++              neighbours.addMember(v);
++          vertexes.put(vertex, neighbours);
++        }
++      }
++    }
++    HashMap<Membership, Triangle> triangles = new HashMap<Membership, Triangle>();
++    HashSet<Vertex> visited = new HashSet<Vertex>();
++    for (Vertex v1 : vertexes.keySet()) {
++      for (Vertex v2 : vertexes.get(v1).getMembers()) {
++        if (visited.contains(v2))
++          continue;
++        for (Vertex v3 : vertexes.get(v2).getMembers()) {
++          if (visited.contains(v2))
++            continue;
++          if (vertexes.get(v3).getMembers().contains(v1)) {
++            Triangle t = new Triangle();
++            t.addEdge(new RepresentativeEdge(v1, v2));
++            t.addEdge(new RepresentativeEdge(v1, v3));
++            t.addEdge(new RepresentativeEdge(v2, v3));
++            Membership key = new Membership().addMember(v1).addMember(v2).addMember(v3);
++            triangles.put(key, t);
++          }
++        }
++      }
++      visited.add(v1);
++    }
++    return triangles;
++  }
++}
+diff --git a/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestSimplifyGraph.java b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestSimplifyGraph.java
+new file mode 100644
+index 0000000..d599b4f
+--- /dev/null
++++ b/ktrusses-core/src/test/java/org/apache/mahout/graph/common/TestSimplifyGraph.java
+@@ -0,0 +1,265 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.mahout.graph.common;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Map.Entry;
++import java.util.Vector;
++
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.fs.FileStatus;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++import org.apache.hadoop.io.Text;
++import org.apache.hadoop.mapreduce.TaskAttemptContext;
++import org.apache.hadoop.mapreduce.TaskAttemptID;
++import org.apache.hadoop.mapreduce.lib.input.FileSplit;
++import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
++import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
++import org.apache.log4j.Level;
++import org.apache.log4j.Logger;
++import org.apache.mahout.common.DummyRecordWriter;
++import org.apache.mahout.common.MahoutTestCase;
++import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
++import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
++import org.apache.mahout.graph.model.Membership;
++import org.apache.mahout.graph.model.Parser;
++import org.apache.mahout.graph.model.RepresentativeEdge;
++import org.apache.mahout.graph.model.SimpleParser;
++import org.apache.mahout.graph.model.Vertex;
++import org.junit.Before;
++import org.junit.Test;
++
++import com.google.common.io.Resources;
++
++public class TestSimplifyGraph extends MahoutTestCase {
++
++  @Before
++  public void logLevel() {
++    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
++  }
++
++  @Test
++  public void testSimplifyGraphMapper() {
++
++    try {
++      Configuration conf = new Configuration();
++      conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
++      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
++
++      SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
++
++      SimplifyGraphMapper.Context ctx = DummyRecordWriter.build(simplifier,
++          conf, writer);
++      simplifier.setup(ctx);
++
++      String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
++
++      for (String line : file) {
++        simplifier.map(null, new Text(line), ctx);
++      }
++
++      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
++
++      assertEquals(1, output.size());
++
++      Membership key = new Membership();
++      key.addMember(new Vertex(1L));
++      key.addMember(new Vertex(2L));
++
++      List<RepresentativeEdge> edges = output.get(key);
++
++      assertNotNull(edges);
++
++      assertEquals(2, edges.size());
++
++      RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
++          2L));
++
++      assertTrue(edges.remove(e));
++      assertTrue(edges.remove(e));
++
++    } catch (IOException e) {
++      throw new RuntimeException();
++    } catch (InterruptedException e) {
++      throw new RuntimeException();
++    }
++  }
++
++  @Test
++  public void testSimplifyGraphReducer() {
++
++    try {
++      Configuration conf = new Configuration();
++      conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
++      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
++
++      SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
++
++      SimplifyGraphMapper.Context ctxm = DummyRecordWriter.build(simplifier,
++          conf, writer);
++      simplifier.setup(ctxm);
++
++      String[] file = new String[] { "1,1", "1,2", "2,1", "2,2", };
++
++      for (String line : file) {
++        simplifier.map(null, new Text(line), ctxm);
++      }
++
++      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
++
++      SimplifyGraphReducer aggregator = new SimplifyGraphReducer();
++
++      writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
++
++      SimplifyGraphReducer.Context ctxr = DummyRecordWriter.build(aggregator,
++          conf, writer, Membership.class, RepresentativeEdge.class);
++
++      for (Entry<Membership, List<RepresentativeEdge>> entry : output
++          .entrySet()) {
++
++        aggregator.reduce(entry.getKey(), entry.getValue(), ctxr);
++
++      }
++
++      output = writer.getData();
++
++      assertEquals(1, output.size());
++
++      Membership key = new Membership();
++      key.addMember(new Vertex(1L));
++      key.addMember(new Vertex(2L));
++
++      List<RepresentativeEdge> edges = output.get(key);
++
++      assertNotNull(edges);
++
++      assertEquals(1, edges.size());
++
++      RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
++          2L));
++
++      assertTrue(edges.remove(e));
++      assertFalse(edges.remove(e));
++
++    } catch (IOException e) {
++      throw new RuntimeException();
++    } catch (InterruptedException e) {
++      throw new RuntimeException();
++    }
++
++  }
++
++  @Test
++  public void testSimplifyGraphJob() throws Exception {
++
++    File inputFile = new File(Resources.getResource("simplifytest.csv").toURI());
++    assertTrue(inputFile.canRead());
++    File outputDir = getTestTempDir("simplifytest-out");
++    File tempDir = getTestTempDir("simplifytest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++    Configuration conf = new Configuration();
++    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
++    simplifyGraphJob.setConf(conf);
++    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
++        "--output", outputDir.getAbsolutePath(), "--tempDir",
++        tempDir.getAbsolutePath() });
++
++    FileSystem sys = FileSystem.get(conf);
++    Path output = new Path(
++        new File(outputDir, "part-r-00000").getAbsolutePath());
++    FileStatus outputStat = sys.getFileStatus(output);
++    HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
++        inputFile, sys, conf);
++    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
++    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
++    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (r.nextKeyValue()) {
++      Membership m = r.getCurrentKey();
++      RepresentativeEdge e = r.getCurrentValue();
++      System.out.println(String.format(
++          "Job returned %s binned under membership %s. Testing map...", e, m));
++      assertEquals(edges.remove(m), e);
++    }
++    assertTrue(edges.isEmpty());
++  }
++
++  private HashMap<Membership, RepresentativeEdge> getTestFileContents(
++      File file, FileSystem sys, Configuration conf) throws IOException {
++    Path path = new Path(file.getAbsolutePath());
++    FileStatus stat = sys.getFileStatus(path);
++    FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
++    Parser parser = new SimpleParser();
++    HashMap<Membership, RepresentativeEdge> edges = new HashMap<Membership, RepresentativeEdge>();
++    LineRecordReader l = new LineRecordReader();
++    l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (l.nextKeyValue()) {
++      Text t = l.getCurrentValue();
++      Vector<Vertex> members = parser.parse(t);
++      if (members != null && members.size() > 1)
++        edges.put(new Membership().setMembers(members), new RepresentativeEdge(
++            members.get(0), members.get(1)));
++    }
++    return edges;
++  };
++
++  @Test
++  public void testSimplifyGraphJobParser() throws Exception {
++
++    File longInputFile = new File(Resources.getResource("simplifytest.csv")
++        .toURI());
++
++    File inputFile = new File(Resources.getResource("simplifytestparser.csv")
++        .toURI());
++    assertTrue(inputFile.canRead());
++    File outputDir = getTestTempDir("simplifytest-out");
++    File tempDir = getTestTempDir("simplifytest-tmp");
++    outputDir.delete();
++    tempDir.delete();
++    Configuration conf = new Configuration();
++    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
++    simplifyGraphJob.setConf(conf);
++    simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
++        "--output", outputDir.getAbsolutePath(), "--tempDir",
++        tempDir.getAbsolutePath(), "--" + Parser.class.getCanonicalName(),
++        LexicalVertexParser.class.getCanonicalName(), });
++
++    FileSystem sys = FileSystem.get(conf);
++    Path output = new Path(
++        new File(outputDir, "part-r-00000").getAbsolutePath());
++    FileStatus outputStat = sys.getFileStatus(output);
++    HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
++        longInputFile, sys, conf);
++    FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
++    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
++    r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
++    while (r.nextKeyValue()) {
++      Membership m = r.getCurrentKey();
++      RepresentativeEdge e = r.getCurrentValue();
++      System.out.println(String.format(
++          "Job returned %s binned under membership %s. Testing map...", e, m));
++      assertEquals(edges.remove(m), e);
++    }
++    assertTrue(edges.isEmpty());
++  }
++}
+diff --git a/ktrusses-core/src/test/resources/augmenttest.csv b/ktrusses-core/src/test/resources/augmenttest.csv
+new file mode 100644
+index 0000000..b12a05d
+--- /dev/null
++++ b/ktrusses-core/src/test/resources/augmenttest.csv
+@@ -0,0 +1,13 @@
++0,0
++0,1
++0,2
++0,3
++0,4
++0,5
++0,6
++0,7
++1,2
++1,3
++2,3
++4,5
++4,7
+diff --git a/ktrusses-core/src/test/resources/simplifytest.csv b/ktrusses-core/src/test/resources/simplifytest.csv
+new file mode 100644
+index 0000000..34c54be
+--- /dev/null
++++ b/ktrusses-core/src/test/resources/simplifytest.csv
+@@ -0,0 +1,7 @@
++0,0
++0,1
++1,0
++1,0
++2,3
++4,3
++4,2
+\ No newline at end of file
+diff --git a/ktrusses-core/src/test/resources/simplifytestparser.csv b/ktrusses-core/src/test/resources/simplifytestparser.csv
+new file mode 100644
+index 0000000..1f04bf2
+--- /dev/null
++++ b/ktrusses-core/src/test/resources/simplifytestparser.csv
+@@ -0,0 +1,10 @@
++# this file has to be held synchronous to simplifytest.csv in 
++# the way that any digit in the first should match a letter in this 
++# according to the lexicographic position, e.g. 0 -> A, 1 -> B
++A,A
++A,B
++B,A
++B,A
++C,D
++E,D
++E,C
+\ No newline at end of file
+diff --git a/ktrusses-core/src/test/resources/trianglestest.csv b/ktrusses-core/src/test/resources/trianglestest.csv
+new file mode 100644
+index 0000000..b12a05d
+--- /dev/null
++++ b/ktrusses-core/src/test/resources/trianglestest.csv
+@@ -0,0 +1,13 @@
++0,0
++0,1
++0,2
++0,3
++0,4
++0,5
++0,6
++0,7
++1,2
++1,3
++2,3
++4,5
++4,7
+diff --git a/pom.xml b/pom.xml
+new file mode 100644
+index 0000000..126accb
+--- /dev/null
++++ b/pom.xml
+@@ -0,0 +1,237 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++
++  <groupId>de.tuberlin.dima.aim</groupId>
++  <artifactId>ktrusses</artifactId>
++  <packaging>pom</packaging>
++  <version>0.0.1-SNAPSHOT</version>
++  <name>AIM kTrusses</name>
++  <url>https://github.com/TillmannFiehn/ktrusses/wiki</url>
++
++  <modules>
++    <module>ktrusses-core</module>
++  </modules>
++
++  <description>This project contains the result of the large scale data mining course at DIMA/ TU Berlin.</description>
++
++  <licenses>
++    <license>
++      <name>The Apache Software License, Version 2.0</name>
++      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
++      <distribution>repo</distribution>
++    </license>
++  </licenses>
++
++  <scm>
++    <url>git@github.com:TillmannFiehn/ktrusses.git</url>
++    <connection>scm:git:git://github.com/TillmannFiehn/ktrusses.git</connection>
++    <developerConnection>scm:git:git@github.com:TillmannFiehn/ktrusses.git</developerConnection>
++  </scm>
++
++  <properties>
++    <hadoop.groupId>org.apache.hadoop</hadoop.groupId>
++    <hadoop.version>0.20.2-CDH3B4</hadoop.version>
++    <mahout.version>0.5</mahout.version>
++    <mahout.collections.version>1.0</mahout.collections.version>
++    <stratosphere.version>0.1</stratosphere.version>
++    <house.keeping.base>${basedir}</house.keeping.base>
++  </properties>
++
++  <repositories>
++    <repository>
++      <id>cloudera</id>
++      <url>https://repository.cloudera.com/content/groups/cloudera-repos/</url>
++    </repository>
++    <repository>
++      <id>apache.snapshots</id>
++      <url>http://repository.apache.org/snapshots/</url>
++      <snapshots>
++         <enabled>true</enabled>
++      </snapshots>
++    </repository>
++  </repositories>
++
++  <dependencyManagement>
++    <dependencies>
++      <dependency>
++        <groupId>org.slf4j</groupId>
++        <artifactId>slf4j-simple</artifactId>
++        <version>1.6.0</version>
++      </dependency>
++      <dependency>
++        <groupId>junit</groupId>
++        <artifactId>junit</artifactId>
++        <version>4.8.1</version>
++        <scope>test</scope>
++      </dependency>
++      <dependency>
++        <groupId>org.mockito</groupId>
++        <artifactId>mockito-all</artifactId>
++        <version>1.8.5</version>
++        <scope>test</scope>
++      </dependency>
++      <dependency> 
++        <groupId>commons-cli</groupId>  
++        <artifactId>commons-cli</artifactId>  
++        <version>1.2</version> 
++      </dependency>  
++      <dependency>
++        <groupId>commons-configuration</groupId>
++        <artifactId>commons-configuration</artifactId>
++        <version>1.6</version>
++      </dependency>
++      <dependency>
++        <groupId>com.google.guava</groupId>
++        <artifactId>guava</artifactId>
++        <version>r08</version>
++      </dependency>
++      <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-collections</artifactId>
++        <version>${mahout.collections.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-math</artifactId>
++        <version>${mahout.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-utils</artifactId>
++        <version>${mahout.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-core</artifactId>
++        <version>${mahout.version}</version>
++        <exclusions>
++          <exclusion>
++            <artifactId>hadoop-core</artifactId>
++            <groupId>org.apache.hadoop</groupId>
++          </exclusion>
++          <exclusion>
++            <artifactId>hbase</artifactId>
++            <groupId>org.apache.mahout.hbase</groupId>
++          </exclusion>
++        </exclusions>
++      </dependency>
++      <dependency>
++        <groupId>org.apache.mahout</groupId>
++        <artifactId>mahout-examples</artifactId>
++        <version>${mahout.version}</version>
++      </dependency>
++      <dependency>
++        <groupId>log4j</groupId>
++        <artifactId>log4j</artifactId>
++        <version>1.2.14</version>
++      </dependency>
++    <dependency>
++      <groupId>eu.stratosphere</groupId>
++      <artifactId>pact-common</artifactId>
++      <version>${stratosphere.version}</version>
++    </dependency>
++    <dependency>
++      <groupId>eu.stratosphere</groupId>
++      <artifactId>pact-clients</artifactId>
++      <version>${stratosphere.version}</version>
++    </dependency>
++   </dependencies>
++  </dependencyManagement>
++  <build>
++    <pluginManagement>
++      <plugins>
++        <plugin>
++          <groupId>org.apache.maven.plugins</groupId>
++          <artifactId>maven-compiler-plugin</artifactId>
++          <version>2.0.2</version>
++          <configuration>
++            <encoding>UTF-8</encoding>
++            <source>1.6</source>
++            <target>1.6</target>
++            <optimize>true</optimize>
++          </configuration>
++        </plugin>
++        <plugin>
++          <groupId>org.apache.maven.plugins</groupId>
++          <artifactId>maven-remote-resources</artifactId>
++          <version>1.1</version>
++       </plugin>
++      </plugins>
++    </pluginManagement>
++    <plugins>
++<!-- 
++        <plugin>
++           <groupId>org.apache.maven.plugins</groupId>
++           <artifactId>maven-remote-resources-plugin</artifactId>
++           <version>1.1</version>
++           <executions>
++             <execution>
++              <goals>
++                <goal>process</goal>
++                <goal>bundle</goal>
++              </goals>
++              <configuration>
++                 <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
++                 <appendedResourcesDirectory>${house.keeping.base}/src/main/appended-resources</appendedResourcesDirectory>
++                 <resourceBundles>
++                   <resourceBundle>org.apache:apache-jar-resource-bundle:1.4</resourceBundle>
++                 </resourceBundles>
++                 <supplementalModels>
++                    <supplementalModel>${house.keeping.base}/src/main/appended-resources/supplemental-models.xml</supplementalModel>
++                 </supplementalModels>
++               </configuration>
++            </execution>
++          </executions>
++        </plugin>
++ -->           
++        <plugin>
++         <artifactId>maven-source-plugin</artifactId>
++       </plugin>
++       <plugin>
++         <artifactId>maven-javadoc-plugin</artifactId>
++       </plugin>
++       <plugin>
++         <groupId>com.mycila.maven-license-plugin</groupId>
++         <artifactId>maven-license-plugin</artifactId>
++         <configuration>
++           <header>src/main/enforcer/header.txt</header>
++         </configuration>
++         <executions>
++           <execution>
++             <phase>package</phase>
++             <goals><goal>format</goal></goals>
++          </execution>
++        </executions>
++      </plugin>
++    </plugins>
++  </build>
++  <profiles>
++    <profile>
++      <id>release-sign-artifact</id>
++      <activation>
++        <property>
++          <name>performRelease</name>
++          <value>true</value>
++        </property>
++      </activation>
++      <build>
++        <plugins>
++          <plugin>
++            <groupId>org.apache.maven.plugins</groupId>
++            <artifactId>maven-gpg-plugin</artifactId>
++            <executions>
++              <execution>
++                <id>sign-artifacts</id>
++                <phase>verify</phase>
++                <goals>
++                  <goal>sign</goal>
++                </goals>
++              </execution>
++            </executions>
++          </plugin>
++        </plugins>
++      </build>
++    </profile>
++  </profiles>
++</project>
+diff --git a/src/main/appended-resources/META_INF/NOTICE b/src/main/appended-resources/META_INF/NOTICE
+new file mode 100644
+index 0000000..88edee7
+--- /dev/null
++++ b/src/main/appended-resources/META_INF/NOTICE
+@@ -0,0 +1,13 @@
++AIM 3 Student project Framework
++Copyright 2011 AIM III course DIMA/TU Berlin
++
++Includes software from other Apache Software Foundation projects,
++including, but not limited to:
++    - Apache Mahout
++    - Apache Lucene Java
++    - Apache Hadoop
++    - Apache Commons
++
++For further details on licenses of other libraries and projects used as part of this
++product please refer to the DEPENDENCIES file.
++
+diff --git a/src/main/appended-resources/supplemental-models.xml b/src/main/appended-resources/supplemental-models.xml
+new file mode 100644
+index 0000000..0debb9d
+--- /dev/null
++++ b/src/main/appended-resources/supplemental-models.xml
+@@ -0,0 +1,690 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++
++    Licensed to the Apache Software Foundation (ASF) under one or more
++    contributor license agreements.  See the NOTICE file distributed with
++    this work for additional information regarding copyright ownership.
++    The ASF licenses this file to You under the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<!--
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the Apache License, Version 2.0
++    (the "License"); you may not use this file except in compliance with
++    the License.  You may obtain a copy of the License at
++
++        http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++-->
++
++<supplementalDataModels>
++  <supplement>
++    <project>
++      <groupId>com.cloudera.hadoop</groupId>
++      <artifactId>hadoop-core</artifactId>
++      <name>Hadoop Core</name>
++      <organization>
++        <name>Cloudera</name>
++        <url>http://cloudera.com</url>
++      </organization>
++      <licenses><license>
++        <name>The Apache Software License, Version 2.0</name>
++        <url>http://maven.apache.org/ref/2.1.0/maven-project/license.html</url>
++      </license></licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>xmlenc</groupId>
++      <artifactId>xmlenc</artifactId>
++      <name>XmlEnc</name>
++      <organization>
++        <name>Xmlenc</name>
++        <url>http://xmlenc.sourceforge.net/</url>
++      </organization>
++      <licenses><license>
++        <name>BSD Original</name>
++        <url>http://www.linfo.org/bsdlicense.html</url>
++      </license></licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>stax</groupId>
++      <artifactId>stax-api</artifactId>
++      <name>Stax API</name>
++      <organization>
++        <name>Stax</name>
++        <url>http://stax.codehaus.org/Home</url>
++      </organization>
++      <licenses><license>
++        <name>The Apache Software License, Version 2.0</name>
++        <url>http://maven.apache.org/ref/2.1.0/maven-project/license.html</url>
++      </license></licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>oro</groupId>
++      <artifactId>oro</artifactId>
++      <name>Jakarta Oro</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses><license>
++        <url>http://maven.apache.org/ref/2.1.0/maven-project/license.html</url>
++        <name>The Apache Software License, Version 2.0</name>
++      </license></licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.uncommons.watchmaker</groupId>
++      <artifactId>watchmaker-swing</artifactId>
++      <name>Watchmaker Swing</name>
++      <organization>
++        <name>Watchmaker Uncommons</name>
++        <url>http://watchmaker.uncommons.org/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.uncommons.watchmaker</groupId>
++      <artifactId>watchmaker-framework</artifactId>
++      <name>Watchmaker Framework</name>
++      <organization>
++        <name>Watchmaker Uncommons</name>
++        <url>http://watchmaker.uncommons.org/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.uncommons.maths</groupId>
++      <artifactId>uncommons-maths</artifactId>
++      <name>Uncommons Math</name>
++      <organization>
++        <name>Math Uncommons</name>
++        <url>http://maths.uncommons.org/</url>
++      </organization>
++      <licenses><license>
++        <name>Apache License, Version 2.0</name>
++        <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++      </license></licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.jruby</groupId>
++      <artifactId>jruby-complete</artifactId>
++      <name>JRuby</name>
++      <organization>
++        <name>JRuby</name>
++        <url>http://www.jruby.org/maven/jruby-complete</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>aopalliance</groupId>
++      <artifactId>aopalliance</artifactId>
++      <name>AOP Alliance</name>
++      <organization>
++        <name>AOP Alliance</name>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.drewnoakes</groupId>
++      <artifactId>metadata-extractor</artifactId>
++      <name>MetaData Extractor</name>
++      <organization>
++        <name>MetaData Extractor</name>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.google.code.gson</groupId>
++      <artifactId>gson</artifactId>
++      <name>GSON</name>
++      <organization>
++        <name>Google</name>
++        <url>http://www.google.com/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.google.collections</groupId>
++      <artifactId>google-collections</artifactId>
++      <organization>
++        <url>http://www.google.com/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-webmvc</artifactId>
++      <name>Spring WebMVC</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-web</artifactId>
++      <name>Spring Web</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-expression</artifactId>
++      <name>Spring Expression</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-core</artifactId>
++      <name>Spring Core</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-context-support</artifactId>
++      <name>Spring Context Support</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-context</artifactId>
++      <name>Spring Context</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-beans</artifactId>
++      <name>Spring Beans</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-asm</artifactId>
++      <name>Spring ASM</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.springframework</groupId>
++      <artifactId>spring-aop</artifactId>
++      <name>Spring AOP</name>
++      <organization>
++        <name>Springsource</name>
++        <url>http://www.springsource.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.eclipse.jdt</groupId>
++      <artifactId>core</artifactId>
++      <name>Eclipse JDT core</name>
++      <organization>
++        <name>Eclipse Foundation</name>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.codehaus.jettison</groupId>
++      <artifactId>jettison</artifactId>
++      <name>Jettison</name>
++      <organization>
++        <name>Jettison</name>
++        <url>http://jettison.codehaus.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.apache.zookeeper</groupId>
++      <artifactId>zookeeper</artifactId>
++      <name>Apache Zookeeper</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.apache.mahout.commons</groupId>
++      <artifactId>commons-cli</artifactId>
++      <name>Apache Commons CLI</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.apache.hadoop</groupId>
++      <artifactId>avro</artifactId>
++      <name>Apache Avro</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>net.sf.kosmosfs</groupId>
++      <artifactId>kfs</artifactId>
++      <name>Kosmo FS</name>
++      <organization>
++        <name>Kosmo FS</name>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>net.java.dev.jets3t</groupId>
++      <artifactId>jets3t</artifactId>
++      <name>Jets3T</name>
++      <organization>
++        <name>Jets3t</name>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++      <project>
++        <groupId>log4j</groupId>
++        <artifactId>log4j</artifactId>
++        <name>Log4j</name>
++        <organization>
++          <name>The Apache Software Foundation</name>
++          <url>http://www.apache.org/</url>
++        </organization>
++        <licenses>
++          <license>
++            <name>Apache License, Version 2.0</name>
++            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++          </license>
++        </licenses>
++      </project>
++    </supplement>
++    <supplement>
++      <project>
++        <groupId>jline</groupId>
++        <artifactId>jline</artifactId>
++        <name>JLine</name>
++        <organization>
++          <name>JLine</name>
++        </organization>
++      </project>
++    </supplement>
++    <supplement>
++      <project>
++        <groupId>javax.xml.bind</groupId>
++        <artifactId>jaxb-api</artifactId>
++        <name>JAXB API</name>
++        <organization>
++          <name>Oracle Corporation</name>
++          <url>http://www.oracle.com/</url>
++        </organization>
++        <licenses>
++          <license>
++            <name>Common Development and Distribution License</name>
++            <url>http://www.sun.com/cddl/</url>
++          </license>
++        </licenses>
++      </project>
++    </supplement>
++    <supplement>
++      <project>
++        <groupId>com.sun.xml.bind</groupId>
++        <artifactId>jaxb-impl</artifactId>
++        <name>JAXB</name>
++        <organization>
++          <name>Oracle Corporation</name>
++          <url>http://www.oracle.com/</url>
++        </organization>
++        <licenses>
++          <license>
++            <name>Common Development and Distribution License</name>
++            <url>http://www.sun.com/cddl/</url>
++          </license>
++        </licenses>
++      </project>
++    </supplement>
++    <supplement>
++      <project>
++        <groupId>javax.servlet</groupId>
++        <artifactId>jstl</artifactId>
++        <name>JSTL</name>
++        <organization>
++          <name>Oracle Corporation</name>
++          <url>http://www.oracle.com/</url>
++        </organization>
++        <licenses>
++          <license>
++            <name>Common Development and Distribution License</name>
++            <url>http://www.sun.com/cddl/</url>
++          </license>
++        </licenses>
++      </project>
++    </supplement>
++  <supplement>
++    <project>
++      <groupId>javax.activation</groupId>
++      <artifactId>activation</artifactId>
++      <name>Activation</name>
++      <organization>
++        <name>Oracle Corporation</name>
++        <url>http://www.oracle.com/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Common Development and Distribution License</name>
++          <url>http://www.sun.com/cddl/</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>hsqldb</groupId>
++      <artifactId>hsqldb</artifactId>
++      <name>HSQLDB</name>
++      <organization>
++        <name>HSQLDB</name>
++        <url>http://hsqldb.org/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>eu.dicodeproject</groupId>
++      <artifactId>integration</artifactId>
++      <name>DICODE integration</name>
++      <organization>
++        <name>Neofonie GmbH</name>
++        <url>http://www.neofonie.de</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++      <project>
++        <groupId>commons-beanutils</groupId>
++        <artifactId>commons-beanutils</artifactId>
++        <name>Apache Commons BeanUtils</name>
++        <organization>
++          <name>The Apache Software Foundation</name>
++          <url>http://www.apache.org/</url>
++        </organization>
++        <licenses>
++          <license>
++            <name>Apache License, Version 2.0</name>
++            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++          </license>
++        </licenses>
++      </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.thoughtworks.qdox</groupId>
++      <artifactId>qdox</artifactId>
++      <name>QDox</name>
++      <organization>
++        <name>QDox</name>
++        <url>http://qdox.codehaus.org</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.thoughtworks.paranamer</groupId>
++      <artifactId>paranamer-generator</artifactId>
++      <name>Paranamer Generator</name>
++      <organization>
++        <name>ParaNamer</name>
++        <url>http://paranamer.codehaus.org/paranamer</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.thoughtworks.paranamer</groupId>
++      <artifactId>paranamer-ant</artifactId>
++      <name>Paranamer Ant</name>
++      <organization>
++        <name>ParaNamer</name>
++        <url>http://paranamer.codehaus.org/paranamer</url>
++      </organization>
++    </project>
++  </supplement>
++    <supplement>
++    <project>
++      <groupId>com.thoughtworks.paranamer</groupId>
++      <artifactId>paranamer</artifactId>
++      <name>Paranamer</name>
++      <organization>
++        <name>ParaNamer</name>
++        <url>http://paranamer.codehaus.org/paranamer</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>com.google.collections</groupId>
++      <artifactId>google-collections</artifactId>
++      <name>Google Collections</name>
++      <organization>
++        <name>Google</name>
++        <url>http://www.google.com/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>xml-apis</groupId>
++      <artifactId>xml-apis</artifactId>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.apache.ant</groupId>
++      <artifactId>ant</artifactId>
++      <name>Apache Ant</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>org.apache.ant</groupId>
++      <artifactId>ant-launcher</artifactId>
++      <name>Apache Ant Launcher</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++      <licenses>
++        <license>
++          <name>Apache License, Version 2.0</name>
++          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
++        </license>
++      </licenses>
++    </project>
++  </supplement>
++  <supplement>
++    <project>
++      <groupId>commons-httpclient</groupId>
++      <artifactId>commons-httpclient</artifactId>
++      <name>Apache HttpClient</name>
++      <organization>
++        <name>The Apache Software Foundation</name>
++        <url>http://www.apache.org/</url>
++      </organization>
++    </project>
++  </supplement>
++
++
++ </supplementalDataModels>
+diff --git a/src/main/enforcer/header.txt b/src/main/enforcer/header.txt
+new file mode 100644
+index 0000000..0ed96c4
+--- /dev/null
++++ b/src/main/enforcer/header.txt
+@@ -0,0 +1,14 @@
++Licensed to the Apache Software Foundation (ASF) under one or more
++contributor license agreements.  See the NOTICE file distributed with
++this work for additional information regarding copyright ownership.
++The ASF licenses this file to You under the Apache License, Version 2.0
++(the "License"); you may not use this file except in compliance with
++the License.  You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
+\ No newline at end of file

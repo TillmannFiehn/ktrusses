@@ -21,16 +21,17 @@ import java.util.TreeSet;
 import java.util.Vector;
 
 import org.apache.hadoop.io.Text;
-import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.Vertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple parser to demonstrate parsing of lexicographic graphs.
  */
 public class LexicalVertexParser implements Parser {
 
-  private static Logger log = Logger.getLogger(LexicalVertexParser.class);
+  private static Logger log = LoggerFactory.getLogger(LexicalVertexParser.class);
   
   private static String alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 

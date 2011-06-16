@@ -35,8 +35,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
@@ -52,11 +50,6 @@ import org.junit.Test;
 import com.google.common.io.Resources;
 
 public class TestSimplifyGraph extends MahoutTestCase {
-
-  @Before
-  public void logLevel() {
-    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
-  }
 
   @Test
   public void testSimplifyGraphMapper() {

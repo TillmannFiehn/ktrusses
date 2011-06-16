@@ -27,12 +27,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Container for the {@link SimplifyGraphJob } mapper and reducer classes.
@@ -40,7 +41,7 @@ import org.apache.mahout.graph.model.Vertex;
  */
 public class SimplifyGraph {
 
-  private static Logger log = Logger.getLogger(SimplifyGraph.class);
+  private static Logger log = LoggerFactory.getLogger(SimplifyGraph.class);
   
   /**
    * Bins edges by an ordered membership set. Scatters edges with at least two

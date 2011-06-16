@@ -27,20 +27,21 @@ import java.util.TreeSet;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.OpenTriad;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.VertexWithDegree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Container for the {@link EnumerateTrianglesJob } mapper and reducer classes.
  */
 public class EnumerateTriangles {
 
-  private static Logger log = Logger.getLogger(EnumerateTriangles.class);
+  private static Logger log = LoggerFactory.getLogger(EnumerateTriangles.class);
 
   /**
    * Finds the lower degree vertex of an edge and emits key-value-pairs to bin

@@ -78,15 +78,6 @@
         <type>test-jar</type>
         <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>pact-clients</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <properties>
