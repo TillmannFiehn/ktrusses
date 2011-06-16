@@ -48,6 +48,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
   @Test
   public void testAugmentGraphWithDegreesGraphJob() throws Exception {
 
+    // run simplification first
     File inputFile = new File(Resources.getResource("augmenttest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
@@ -65,6 +66,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
 
     File intermedediateFile = new File(outputDir, "part-r-00000");
 
+    // augment the simplified graph
     AugmentGraphWithDegreesJob augmentJob = new AugmentGraphWithDegreesJob();
     augmentJob.setConf(conf);
     assertTrue(intermedediateFile.canRead());
