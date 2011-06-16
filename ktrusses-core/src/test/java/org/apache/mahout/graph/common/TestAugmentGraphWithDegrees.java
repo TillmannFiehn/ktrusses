@@ -50,12 +50,15 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
     File inputFile = new File(Resources.getResource("augmenttest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
+    File tempDir = getTestTempDir("simplifytest-tmp");
     outputDir.delete();
+    tempDir.delete();
     Configuration conf = new Configuration();
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
-        "--output", outputDir.getAbsolutePath() });
+        "--output", outputDir.getAbsolutePath(), "--tempDir",
+        tempDir.getAbsolutePath() });
 
     FileSystem sys = FileSystem.get(conf);
 
@@ -66,11 +69,13 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
     assertTrue(intermedediateFile.canRead());
 
     outputDir = getTestTempDir("augmenttest-out");
+    tempDir = getTestTempDir("augmenttest-tmp");
     outputDir.delete();
-    
+    tempDir.delete();
+
     augmentJob.run(new String[] { "--input",
         intermedediateFile.getAbsolutePath(), "--output",
-        outputDir.getAbsolutePath() });
+        outputDir.getAbsolutePath(), "--tempDir", tempDir.getAbsolutePath() });
 
     Path output = new Path(
         new File(outputDir, "part-r-00000").getAbsolutePath());
@@ -89,8 +94,10 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
           "Job returned %s binned under membership %s. Testing map...", e, m));
       RepresentativeEdge test = edges.remove(m);
       assertEquals(test, e);
-      assertEquals(test.getDegree(test.getVertex0()), e.getDegree(e.getVertex0()));
-      assertEquals(test.getDegree(test.getVertex1()), e.getDegree(e.getVertex1()));
+      assertEquals(test.getDegree(test.getVertex0()),
+          e.getDegree(e.getVertex0()));
+      assertEquals(test.getDegree(test.getVertex1()),
+          e.getDegree(e.getVertex1()));
     }
     assertTrue(edges.isEmpty());
   }
@@ -112,7 +119,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
             members.get(0), members.get(1)));
     }
     HashMap<Long, Long> degrees = new HashMap<Long, Long>();
-    for(RepresentativeEdge edge : edges.values()) {
+    for (RepresentativeEdge edge : edges.values()) {
       Vertex v0 = edge.getVertex0();
       Long d0 = degrees.get(v0.getId());
       if (d0 == null || d0 == 0) {
@@ -130,7 +137,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
       }
       degrees.put(v1.getId(), d1);
     }
-    for(RepresentativeEdge edge : edges.values()) {
+    for (RepresentativeEdge edge : edges.values()) {
       Vertex v0 = edge.getVertex0();
       edge.setDegree(v0, degrees.get(v0.getId()));
       Vertex v1 = edge.getVertex1();

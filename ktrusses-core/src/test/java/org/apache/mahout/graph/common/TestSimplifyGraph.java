@@ -167,12 +167,15 @@ public class TestSimplifyGraph extends MahoutTestCase {
     File inputFile = new File(Resources.getResource("simplifytest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
+    File tempDir = getTestTempDir("simplifytest-tmp");
     outputDir.delete();
+    tempDir.delete();
     Configuration conf = new Configuration();
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
-        "--output", outputDir.getAbsolutePath() });
+        "--output", outputDir.getAbsolutePath(),
+        "--tempDir", tempDir.getAbsolutePath() });
 
     FileSystem sys = FileSystem.get(conf);
     Path output = new Path(
@@ -222,12 +225,15 @@ public class TestSimplifyGraph extends MahoutTestCase {
         .toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
+    File tempDir = getTestTempDir("simplifytest-tmp");
     outputDir.delete();
+    tempDir.delete();
     Configuration conf = new Configuration();
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
         "--output", outputDir.getAbsolutePath(),
+        "--tempDir", tempDir.getAbsolutePath(),
         "--" + Parser.class.getCanonicalName(),
         LexicalVertexParser.class.getCanonicalName(), });
 
