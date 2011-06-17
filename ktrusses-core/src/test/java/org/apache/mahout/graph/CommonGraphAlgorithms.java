@@ -17,11 +17,13 @@
 
 package org.apache.mahout.graph;
 
+import org.apache.mahout.graph.common.TestAugmentGraphWithDegrees;
+import org.apache.mahout.graph.common.TestEnumerateTriangles;
 import org.apache.mahout.graph.common.TestSimplifyGraph;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
-@Suite.SuiteClasses({TestSimplifyGraph.class})
-public class SimplifyGraph {
+@Suite.SuiteClasses({TestSimplifyGraph.class,TestAugmentGraphWithDegrees.class,TestEnumerateTriangles.class})
+public class CommonGraphAlgorithms {
 }
