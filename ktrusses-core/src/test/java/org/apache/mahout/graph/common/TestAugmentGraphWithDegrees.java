@@ -33,7 +33,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.apache.mahout.common.MahoutTestCase;
-import org.apache.mahout.graph.model.GeneralGraphElement;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -88,7 +88,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
     HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
         inputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
-    SequenceFileRecordReader<Membership, GeneralGraphElement> r = new SequenceFileRecordReader<Membership, GeneralGraphElement>();
+    SequenceFileRecordReader<Membership, GenericGraphElement> r = new SequenceFileRecordReader<Membership, GenericGraphElement>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();

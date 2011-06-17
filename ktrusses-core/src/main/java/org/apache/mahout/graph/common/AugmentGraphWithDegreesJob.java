@@ -29,7 +29,7 @@ import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
 import org.apache.mahout.graph.common.AugmentGraphWithDegrees.ScatterEdges;
 import org.apache.mahout.graph.common.AugmentGraphWithDegrees.SumDegrees;
-import org.apache.mahout.graph.model.GeneralGraphElement;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 
@@ -74,7 +74,7 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
     Job join = prepareJob(augmentedEdgesPath, outputPath,
         SequenceFileInputFormat.class, Mapper.class, Membership.class,
         RepresentativeEdge.class, JoinDegrees.class, Membership.class,
-        GeneralGraphElement.class, SequenceFileOutputFormat.class);
+        GenericGraphElement.class, SequenceFileOutputFormat.class);
 
     join.waitForCompletion(true);
 

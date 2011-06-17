@@ -29,7 +29,7 @@ import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.EnumerateTriangles.BuildOpenTriads;
 import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
 import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
-import org.apache.mahout.graph.model.GeneralGraphElement;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 
 /**
@@ -64,10 +64,10 @@ public class EnumerateTrianglesJob extends AbstractJob {
             SequenceFileInputFormat.class,
             ScatterEdgesToLowerDegreeVertex.class,
             Membership.class,
-            GeneralGraphElement.class,
+            GenericGraphElement.class,
             BuildOpenTriads.class,
             Membership.class,
-            GeneralGraphElement.class,
+            GenericGraphElement.class,
             SequenceFileOutputFormat.class);
 
     scatter.waitForCompletion(true);
@@ -78,10 +78,10 @@ public class EnumerateTrianglesJob extends AbstractJob {
             SequenceFileInputFormat.class,
             Mapper.class,
             Membership.class,
-            GeneralGraphElement.class,
+            GenericGraphElement.class,
             BuildTriangles.class,
             Membership.class,
-            GeneralGraphElement.class,
+            GenericGraphElement.class,
             SequenceFileOutputFormat.class);
 
 

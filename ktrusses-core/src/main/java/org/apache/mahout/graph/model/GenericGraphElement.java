@@ -28,12 +28,12 @@ import org.apache.hadoop.io.WritableComparable;
  * multiple SequenceFiles to one Mapper or Reducer
  * 
  */
-public class GeneralGraphElement implements
-    WritableComparable<GeneralGraphElement> {
+public class GenericGraphElement implements
+    WritableComparable<GenericGraphElement> {
 
   /**
    * Constants to distinguish between different types that can be contained by
-   * {@link GeneralGraphElement }
+   * {@link GenericGraphElement }
    */
   public static enum Type {
     /**
@@ -69,7 +69,7 @@ public class GeneralGraphElement implements
   /**
    * Empty constructor for the deserialization methods
    */
-  public GeneralGraphElement() {
+  public GenericGraphElement() {
 
   }
 
@@ -77,10 +77,10 @@ public class GeneralGraphElement implements
    * Construct this container from a real object
    * 
    * @param it
-   *          The object to be saved in a general format
+   *          The object to be saved in a generic format
    */
   @SuppressWarnings("rawtypes")
-  public GeneralGraphElement(WritableComparable it) {
+  public GenericGraphElement(WritableComparable it) {
     value = it;
     try {
       type = Type.valueOf(it.getClass().getSimpleName());
@@ -105,7 +105,6 @@ public class GeneralGraphElement implements
     value.write(out);
   }
 
-  @SuppressWarnings("rawtypes")
   @Override
   public void readFields(DataInput in) throws IOException {
     int ordinal = in.readInt();
@@ -138,7 +137,7 @@ public class GeneralGraphElement implements
    */
   @SuppressWarnings("unchecked")
   @Override
-  public int compareTo(GeneralGraphElement o) {
+  public int compareTo(GenericGraphElement o) {
     if (type.equals(o.type)) {
       return value.compareTo(o.value);
     } else {

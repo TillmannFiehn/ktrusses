@@ -22,10 +22,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.mahout.graph.model.GeneralGraphElement;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Vertex;
@@ -94,9 +93,8 @@ public class AugmentGraphWithDegrees {
    * Joins identical edges assuring degree augmentations for both nodes
    */
   public static class JoinDegrees extends
-      Reducer<Membership, RepresentativeEdge, Membership, GeneralGraphElement> {
+      Reducer<Membership, RepresentativeEdge, Membership, GenericGraphElement> {
 
-    @SuppressWarnings("rawtypes")
     @Override
     public void reduce(Membership key, Iterable<RepresentativeEdge> values,
         Context ctx) throws IOException, InterruptedException {
@@ -128,7 +126,7 @@ public class AugmentGraphWithDegrees {
       log.trace(String.format(
           "fully augmentet edge %s, binned under %s.",
           edge, key));
-      ctx.write(key, new GeneralGraphElement(edge));
+      ctx.write(key, new GenericGraphElement(edge));
     }
   }
 }

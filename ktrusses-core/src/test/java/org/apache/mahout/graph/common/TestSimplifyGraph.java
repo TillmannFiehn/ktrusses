@@ -44,7 +44,6 @@ import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
-import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;

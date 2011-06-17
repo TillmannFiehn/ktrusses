@@ -27,7 +27,7 @@ import java.util.TreeSet;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.mahout.graph.model.GeneralGraphElement;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.OpenTriad;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -48,19 +48,19 @@ public class EnumerateTriangles {
    * under this lower degree vertex.
    */
   public static class ScatterEdgesToLowerDegreeVertex extends
-      Mapper<Object, GeneralGraphElement, Membership, GeneralGraphElement> {
+      Mapper<Object, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void map(Object key, GeneralGraphElement value, Context ctx)
+    public void map(Object key, GenericGraphElement generic, Context ctx)
         throws IOException, InterruptedException {
 
-      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) value.getValue());
+      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) generic.getValue());
       VertexWithDegree lower = order.iterator().next();
       if (lower.getDegree() > 1) {
         log.trace(String.format(
             "edge %s under lower degree vertex %s.",
-            value, lower));
-        ctx.write(new Membership().addMember(lower.getVertex()), value);
+            generic, lower));
+        ctx.write(new Membership().addMember(lower.getVertex()), generic);
       }
     }
   }
@@ -72,16 +72,16 @@ public class EnumerateTriangles {
    * 
    */
   public static class BuildOpenTriads extends
-      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
+      Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<GeneralGraphElement> values,
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics,
         Context ctx) throws IOException, InterruptedException {
 
       List<RepresentativeEdge> map = new LinkedList<RepresentativeEdge>();
 
-      for (GeneralGraphElement general : values) { // nested loop join
-        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) general.getValue());
+      for (GenericGraphElement generic : generics) { // nested loop join
+        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) generic.getValue());
         for (RepresentativeEdge build : map) {
 
           if (!probe.equals(build)) {
@@ -100,7 +100,7 @@ public class EnumerateTriangles {
             log.trace(String.format(
                 "open triad under membership key %s.",
                 newvalue, newkey));
-            ctx.write(newkey, new GeneralGraphElement(newvalue));
+            ctx.write(newkey, new GenericGraphElement(newvalue));
           }
         }
         map.add(probe);
@@ -113,17 +113,17 @@ public class EnumerateTriangles {
    * vertices of the triad.
    */
   public static class BuildTriangles extends
-      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
+      Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<GeneralGraphElement> values, Context ctx)
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics, Context ctx)
         throws IOException, InterruptedException {
       Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
       Set<OpenTriad> triads = new TreeSet<OpenTriad>();
       // TODO avoid NLJ via a smart merging and partitioning of input keys
-      for (GeneralGraphElement general : values) { // build sets with separate inputs
+      for (GenericGraphElement generic : generics) { // build sets with separate inputs
         @SuppressWarnings("rawtypes")
-        WritableComparable value = general.getValue();
+        WritableComparable value = generic.getValue();
         if (value instanceof OpenTriad) {
           triads.add(OpenTriad.duplicate((OpenTriad) value));
         }
@@ -142,7 +142,7 @@ public class EnumerateTriangles {
           log.trace(String.format(
               "triangle %s, binned unhip key %s.",
               triangle, m));
-          ctx.write(m, new GeneralGraphElement(triangle));
+          ctx.write(m, new GenericGraphElement(triangle));
         }
       }
     }
