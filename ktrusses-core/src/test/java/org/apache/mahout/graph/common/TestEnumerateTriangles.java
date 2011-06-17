@@ -89,12 +89,12 @@ public class TestEnumerateTriangles extends MahoutTestCase {
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
     SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
-    /*while (r.nextKeyValue()) {
+    while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
       RepresentativeEdge e = r.getCurrentValue();
       System.out.println(String.format(
           "Job returned %s binned under membership %s. Testing map...", e, m));
-      RepresentativeEdge test = edges.remove(m);
+      /*RepresentativeEdge test = edges.remove(m);
       assertEquals(test, e);
 	  assertEquals(test.)
 
@@ -104,6 +104,7 @@ public class TestEnumerateTriangles extends MahoutTestCase {
           e.getDegree(e.getVertex1()));
     }
     assertTrue(edges.isEmpty());*/
+    }
   }
 
   private HashSet<Triangle> getTestFileContents(
@@ -147,7 +148,7 @@ public class TestEnumerateTriangles extends MahoutTestCase {
       }
       visited.add(v1);
     }
-    System.out.println("Found "+triangles.size()+" triangles.");
+    //System.out.println("Found "+triangles.size()+" triangles.");
     return triangles;
   }
 }
