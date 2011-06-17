@@ -18,16 +18,21 @@
 package org.apache.mahout.graph.common;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.log4j.Logger;
+import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.OpenTriad;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Triangle;
-import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
 
 /**
@@ -35,20 +40,25 @@ import org.apache.mahout.graph.model.VertexWithDegree;
  */
 public class EnumerateTriangles {
 
+  private static Logger log = Logger.getLogger(EnumerateTriangles.class);
+
   /**
    * Finds the lower degree vertex of an edge and emits key-value-pairs to bin
    * under this lower degree vertex.
    */
   public static class ScatterEdgesToLowerDegreeVertex extends
-      Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Mapper<Object, GeneralGraphElement, Membership, GeneralGraphElement> {
 
     @Override
-    public void map(Object key, RepresentativeEdge value, Context ctx)
+    public void map(Object key, GeneralGraphElement value, Context ctx)
         throws IOException, InterruptedException {
 
-      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered(value);
+      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) value.getValue());
       VertexWithDegree lower = order.iterator().next();
       if (lower.getDegree() > 1) {
+        log.trace(String.format(
+            "edge %s under lower degree vertex %s.",
+            value, lower));
         ctx.write(new Membership().addMember(lower.getVertex()), value);
       }
     }
@@ -61,33 +71,38 @@ public class EnumerateTriangles {
    * 
    */
   public static class BuildOpenTriads extends
-      Reducer<Membership, RepresentativeEdge, Membership, OpenTriad> {
+      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+    public void reduce(Membership key, Iterable<GeneralGraphElement> values,
         Context ctx) throws IOException, InterruptedException {
 
-      Vertex lower = key.getMembers().iterator().next();
+      List<RepresentativeEdge> map = new LinkedList<RepresentativeEdge>();
 
-      for (RepresentativeEdge outer : values) { // nested loop join
-        for (RepresentativeEdge inner : values) {
-          if (!outer.equals(inner)) {
-            Set<VertexWithDegree> outerSet = TotalVertexOrder.getOrdered(outer);
-            Set<VertexWithDegree> innerSet = TotalVertexOrder.getOrdered(inner);
-            outerSet.remove(lower); // VwD equals V if vertices equal
-            innerSet.remove(lower); // VwD equals V if vertices equal
+      for (GeneralGraphElement general : values) { // nested loop join
+        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) general.getValue());
+        for (RepresentativeEdge build : map) {
+
+          if (!probe.equals(build)) {
+            Iterator<VertexWithDegree> iterator = TotalVertexOrder.getOrdered(build, probe).iterator(); 
+            VertexWithDegree lower = iterator.next(); 
+            iterator.remove();
             // build the new key
             Membership newkey = new Membership();
-            newkey.addMember(outerSet.iterator().next().getVertex());
-            newkey.addMember(innerSet.iterator().next().getVertex());
+            newkey.addMember(iterator.next().getVertex());
+            newkey.addMember(iterator.next().getVertex());
 
             OpenTriad newvalue = new OpenTriad();
-            newvalue.setApex(lower);
-            newvalue.addEdge(outer);
-            newvalue.addEdge(inner);
-            ctx.write(newkey, newvalue);
+            newvalue.setApex(lower.getVertex());
+            newvalue.addEdge(probe);
+            newvalue.addEdge(build);
+            log.trace(String.format(
+                "open triad under membership key %s.",
+                newvalue, newkey));
+            ctx.write(newkey, new GeneralGraphElement(newvalue));
           }
         }
+        map.add(probe);
       }
     }
   }
@@ -97,15 +112,17 @@ public class EnumerateTriangles {
    * vertices of the triad.
    */
   public static class BuildTriangles extends
-      Reducer<Membership, Object, Membership, Triangle> {
+      Reducer<Membership, GeneralGraphElement, Membership, GeneralGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<Object> values, Context ctx)
+    public void reduce(Membership key, Iterable<GeneralGraphElement> values, Context ctx)
         throws IOException, InterruptedException {
       Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
       Set<OpenTriad> triads = new TreeSet<OpenTriad>();
       // TODO avoid NLJ via a smart merging and partitioning of input keys
-      for (Object value : values) { // build sets with separate inputs
+      for (GeneralGraphElement general : values) { // build sets with separate inputs
+        @SuppressWarnings("rawtypes")
+        WritableComparable value = general.getValue();
         if (value instanceof OpenTriad) {
           triads.add(OpenTriad.duplicate((OpenTriad) value));
         }
@@ -121,7 +138,10 @@ public class EnumerateTriangles {
           Membership m = new Membership().addMember(triad.getApex());
           m.addMember(edge.getVertex0());
           m.addMember(edge.getVertex1());
-          ctx.write(m, triangle);
+          log.trace(String.format(
+              "triangle %s, binned unhip key %s.",
+              triangle, m));
+          ctx.write(m, new GeneralGraphElement(triangle));
         }
       }
     }

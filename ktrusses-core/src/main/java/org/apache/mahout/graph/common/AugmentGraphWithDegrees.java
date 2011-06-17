@@ -22,9 +22,11 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.log4j.Logger;
+import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.Vertex;
@@ -79,10 +81,7 @@ public class AugmentGraphWithDegrees {
         Membership newkey = new Membership().addMember(edge.getVertex0())
             .addMember(edge.getVertex1());
         log.trace(String.format(
-            "Outputting augmentet edge %s, binned under membership key %s.",
-            edge, newkey));
-        System.out.println(String.format(
-            "Outputting augmentet edge %s, binned under membership key %s.",
+            "augmentet edge %s, binned under %s.",
             edge, newkey));
         ctx.write(newkey, edge);
       }
@@ -94,8 +93,9 @@ public class AugmentGraphWithDegrees {
    * Joins identical edges assuring degree augmentations for both nodes
    */
   public static class JoinDegrees extends
-      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Reducer<Membership, RepresentativeEdge, Membership, GeneralGraphElement> {
 
+    @SuppressWarnings("rawtypes")
     @Override
     public void reduce(Membership key, Iterable<RepresentativeEdge> values,
         Context ctx) throws IOException, InterruptedException {
@@ -125,12 +125,9 @@ public class AugmentGraphWithDegrees {
       edge.setDegree(v1, d1);
 
       log.trace(String.format(
-          "Outputting augmentet edge %s, binned under membership key %s.",
+          "fully augmentet edge %s, binned under %s.",
           edge, key));
-      System.out.println(String.format(
-          "Outputting augmentet edge %s, binned under membership key %s.",
-          edge, key));
-      ctx.write(key, edge);
+      ctx.write(key, new GeneralGraphElement((WritableComparable) edge));
     }
   }
 }

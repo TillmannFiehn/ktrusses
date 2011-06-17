@@ -20,6 +20,7 @@ package org.apache.mahout.graph.common;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Vector;
 
 import org.apache.hadoop.conf.Configuration;
@@ -32,23 +33,33 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
+import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.Vertex;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
-import java.util.HashSet;
-import org.apache.mahout.graph.model.Triangle;
 
 public class TestEnumerateTriangles extends MahoutTestCase {
+
+  @Before
+  public void logLevel() {
+    Logger.getRootLogger().setLevel(Level.WARN);
+    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
+  }
 
   @Test
   public void testEnumerateTrianglesJob() throws Exception {
 
+    // run simplification first
     File inputFile = new File(Resources.getResource("trianglestest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
@@ -66,6 +77,23 @@ public class TestEnumerateTriangles extends MahoutTestCase {
 
     File intermedediateFile = new File(outputDir, "part-r-00000");
 
+    // augment the simplified graph
+    AugmentGraphWithDegreesJob augmentJob = new AugmentGraphWithDegreesJob();
+    augmentJob.setConf(conf);
+    assertTrue(intermedediateFile.canRead());
+
+    outputDir = getTestTempDir("augmenttest-out");
+    tempDir = getTestTempDir("augmenttest-tmp");
+    outputDir.delete();
+    tempDir.delete();
+
+    augmentJob.run(new String[] { "--input",
+        intermedediateFile.getAbsolutePath(), "--output",
+        outputDir.getAbsolutePath(), "--tempDir", tempDir.getAbsolutePath() });
+
+    intermedediateFile = new File(outputDir, "part-r-00000");
+
+    // enumerate the triangles
     EnumerateTrianglesJob enumerateJob = new EnumerateTrianglesJob();
     enumerateJob.setConf(conf);
     assertTrue(intermedediateFile.canRead());
@@ -84,37 +112,32 @@ public class TestEnumerateTriangles extends MahoutTestCase {
 
     FileStatus outputStat = sys.getFileStatus(output);
 
-    HashSet<Triangle> triangles = getTestFileContents(
+    HashMap<Membership, Triangle> triangles = getTestFileContents(
         inputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
-    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    SequenceFileRecordReader<Membership, GeneralGraphElement> r = new SequenceFileRecordReader<Membership, GeneralGraphElement>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
+
     while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
-      RepresentativeEdge e = r.getCurrentValue();
+      Triangle t = (Triangle) r.getCurrentValue().getValue();
+      
       System.out.println(String.format(
-          "Job returned %s binned under membership %s. Testing map...", e, m));
-      /*RepresentativeEdge test = edges.remove(m);
-      assertEquals(test, e);
-	  assertEquals(test.)
+          "Job returned %s binned under membership %s. Testing map...", t, m));
+      Triangle test = triangles.remove(m);
+      assertEquals(test, t);
 
-      assertEquals(test.getDegree(test.getVertex0()),
-          e.getDegree(e.getVertex0()));
-      assertEquals(test.getDegree(test.getVertex1()),
-          e.getDegree(e.getVertex1()));
     }
-    assertTrue(edges.isEmpty());*/
-    }
+    assertTrue(String.format("%s should have been empty.", triangles), triangles.isEmpty());
   }
 
-  private HashSet<Triangle> getTestFileContents(
-      File file, FileSystem sys, Configuration conf) throws IOException {
+  private HashMap<Membership, Triangle> getTestFileContents(File file, FileSystem sys,
+      Configuration conf) throws IOException {
     Path path = new Path(file.getAbsolutePath());
     FileStatus stat = sys.getFileStatus(path);
     FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
     Parser parser = new SimpleParser();
-    HashMap<Membership, RepresentativeEdge> edges = new HashMap<Membership, RepresentativeEdge>();
-    HashMap<Vertex,Membership> vertexes = new HashMap<Vertex,Membership>();
+    HashMap<Vertex, Membership> vertexes = new HashMap<Vertex, Membership>();
     LineRecordReader l = new LineRecordReader();
     l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (l.nextKeyValue()) {
@@ -122,33 +145,36 @@ public class TestEnumerateTriangles extends MahoutTestCase {
       Vector<Vertex> members = parser.parse(t);
       if (members != null && members.size() > 1) {
         for (Vertex vertex : members) {
-          Membership neighbours = vertexes.containsKey(vertex) ? 
-            vertexes.get(vertex) : new Membership();
-          for (Vertex v : members) if (!v.equals(vertex)) neighbours.addMember(v);
+          Membership neighbours = vertexes.containsKey(vertex) ? vertexes
+              .get(vertex) : new Membership();
+          for (Vertex v : members)
+            if (!v.equals(vertex))
+              neighbours.addMember(v);
           vertexes.put(vertex, neighbours);
         }
       }
     }
-    HashSet<Triangle> triangles = new HashSet<Triangle>();
+    HashMap<Membership, Triangle> triangles = new HashMap<Membership, Triangle>();
     HashSet<Vertex> visited = new HashSet<Vertex>();
     for (Vertex v1 : vertexes.keySet()) {
-      for (Vertex v2 : vertexes.get(v1).getMembers() ) {
-        assertFalse(v2.equals(v1));
-        if( visited.contains(v2) ) continue;
-        for (Vertex v3 : vertexes.get(v2).getMembers() ) {
-          if( visited.contains(v2) ) continue;
-          if( vertexes.get(v3).getMembers().contains(v1) ) {
+      for (Vertex v2 : vertexes.get(v1).getMembers()) {
+        if (visited.contains(v2))
+          continue;
+        for (Vertex v3 : vertexes.get(v2).getMembers()) {
+          if (visited.contains(v2))
+            continue;
+          if (vertexes.get(v3).getMembers().contains(v1)) {
             Triangle t = new Triangle();
-            t.addEdge(new RepresentativeEdge(v1,v2));
-            t.addEdge(new RepresentativeEdge(v1,v3));
-            t.addEdge(new RepresentativeEdge(v2,v3));
-            triangles.add(t);
+            t.addEdge(new RepresentativeEdge(v1, v2));
+            t.addEdge(new RepresentativeEdge(v1, v3));
+            t.addEdge(new RepresentativeEdge(v2, v3));
+            Membership key = new Membership().addMember(v1).addMember(v2).addMember(v3);
+            triangles.put(key, t);
           }
         }
       }
       visited.add(v1);
     }
-    //System.out.println("Found "+triangles.size()+" triangles.");
     return triangles;
   }
 }

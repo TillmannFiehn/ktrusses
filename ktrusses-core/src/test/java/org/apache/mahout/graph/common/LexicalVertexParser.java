@@ -21,6 +21,7 @@ import java.util.TreeSet;
 import java.util.Vector;
 
 import org.apache.hadoop.io.Text;
+import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.Vertex;
 
@@ -29,6 +30,8 @@ import org.apache.mahout.graph.model.Vertex;
  */
 public class LexicalVertexParser implements Parser {
 
+  private static Logger log = Logger.getLogger(LexicalVertexParser.class);
+  
   private static String alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
   @Override
@@ -42,7 +45,7 @@ public class LexicalVertexParser implements Parser {
         set.add(v);
       }
       Vector<Vertex> vec = new Vector<Vertex>(set);
-      System.out.println(String.format(
+      log.info(String.format(
           "Parsed line `%s`. Created Vertices %s.", description, vec));
       return vec;
     } catch (Exception e) {

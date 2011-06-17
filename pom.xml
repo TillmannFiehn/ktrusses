@@ -87,46 +87,6 @@
         <version>r08</version>
       </dependency>
       <dependency>
-        <groupId>${hadoop.groupId}</groupId>
-        <artifactId>hadoop-core</artifactId>
-        <version>${hadoop.version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>jetty</artifactId>
-            <groupId>org.mortbay.jetty</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>jetty-util</artifactId>
-            <groupId>org.mortbay.jetty</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>jsp-2.1</artifactId>
-            <groupId>org.mortbay.jetty</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>jsp-api-2.1</artifactId>
-            <groupId>org.mortbay.jetty</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>servlet-api-2.5</artifactId>
-            <groupId>org.mortbay.jetty</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>jasper-compiler</artifactId>
-            <groupId>tomcat</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>jasper-runtime</artifactId>
-            <groupId>tomcat</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>com.cloudera.hadoop</groupId>
-        <artifactId>hadoop-mrunit</artifactId>
-        <version>0.20.2-737</version>
-      </dependency>
-      <dependency>
         <groupId>org.apache.mahout</groupId>
         <artifactId>mahout-collections</artifactId>
         <version>${mahout.collections.version}</version>

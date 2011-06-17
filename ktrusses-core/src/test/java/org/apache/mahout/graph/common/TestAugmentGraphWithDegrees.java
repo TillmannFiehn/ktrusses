@@ -32,21 +32,31 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.mahout.common.MahoutTestCase;
+import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
 
 public class TestAugmentGraphWithDegrees extends MahoutTestCase {
 
+  @Before
+  public void logLevel() {
+    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
+  }
+
   @Test
   public void testAugmentGraphWithDegreesGraphJob() throws Exception {
 
+    // run simplification first
     File inputFile = new File(Resources.getResource("augmenttest.csv").toURI());
     assertTrue(inputFile.canRead());
     File outputDir = getTestTempDir("simplifytest-out");
@@ -64,6 +74,7 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
 
     File intermedediateFile = new File(outputDir, "part-r-00000");
 
+    // augment the simplified graph
     AugmentGraphWithDegreesJob augmentJob = new AugmentGraphWithDegreesJob();
     augmentJob.setConf(conf);
     assertTrue(intermedediateFile.canRead());
@@ -85,11 +96,11 @@ public class TestAugmentGraphWithDegrees extends MahoutTestCase {
     HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
         inputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
-    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    SequenceFileRecordReader<Membership, GeneralGraphElement> r = new SequenceFileRecordReader<Membership, GeneralGraphElement>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
-      RepresentativeEdge e = r.getCurrentValue();
+      RepresentativeEdge e = (RepresentativeEdge) r.getCurrentValue().getValue();
       System.out.println(String.format(
           "Job returned %s binned under membership %s. Testing map...", e, m));
       RepresentativeEdge test = edges.remove(m);

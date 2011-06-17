@@ -45,7 +45,7 @@ public class OpenTriad implements WritableComparable<OpenTriad> {
     for (RepresentativeEdge e : orig.edges) {
       dup.edges.add(RepresentativeEdge.duplicate(e));
     }
-    return null;
+    return dup;
   }
 
   /**
@@ -139,8 +139,18 @@ public class OpenTriad implements WritableComparable<OpenTriad> {
 
   @Override
   public int compareTo(OpenTriad o) {
-    // TODO Auto-generated method stub
-    return 0;
+    int c = apex.compareTo(o.apex);
+    if (c == 0) {
+      Membership m = new Membership().addMember(edges.get(0).getVertex0()).addMember(edges.get(0).getVertex1()).addMember(edges.get(1).getVertex0()).addMember(edges.get(1).getVertex1());
+      Membership o_m = new Membership().addMember(o.edges.get(0).getVertex0()).addMember(o.edges.get(0).getVertex1()).addMember(o.edges.get(1).getVertex0()).addMember(o.edges.get(1).getVertex1());
+      c = m.compareTo(o_m);
+    }
+    return c;
+  }
+  
+  @Override
+  public String toString() {
+    return String.format("∠(%s {%s | %s})", apex, edges.get(0), edges.get(1));
   }
 
 }

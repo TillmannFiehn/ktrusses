@@ -26,12 +26,11 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
 import org.apache.mahout.graph.common.EnumerateTriangles.BuildOpenTriads;
+import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
 import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
+import org.apache.mahout.graph.model.GeneralGraphElement;
 import org.apache.mahout.graph.model.Membership;
-import org.apache.mahout.graph.model.OpenTriad;
-import org.apache.mahout.graph.model.RepresentativeEdge;
 
 /**
  * Enumerates the triangles of a graph.
@@ -56,34 +55,35 @@ public class EnumerateTrianglesJob extends AbstractJob {
     Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
 
     Path inputPath = getInputPath();
-    Path trianglesPath = new Path(tempDirPath, "triangles-" + System.currentTimeMillis());
+    Path triadsPath = new Path(tempDirPath, "triangles-" + System.currentTimeMillis());
     Path outputPath = getOutputPath();
 
     // scatter the edges to lower degree vertex and build open triads
     Job scatter = prepareJob(inputPath,
-            trianglesPath,
+            triadsPath,
             SequenceFileInputFormat.class,
             ScatterEdgesToLowerDegreeVertex.class,
             Membership.class,
-            RepresentativeEdge.class,
+            GeneralGraphElement.class,
             BuildOpenTriads.class,
             Membership.class,
-            OpenTriad.class,
+            GeneralGraphElement.class,
             SequenceFileOutputFormat.class);
 
     scatter.waitForCompletion(true);
     
-    // join triads and edges pairwise to get all triangles
-    Job join = prepareJob(trianglesPath,
+    //join triads and edges pairwise to get all triangles
+    Job join = prepareJob(new Path(triadsPath + "," + inputPath),
             outputPath,
             SequenceFileInputFormat.class,
             Mapper.class,
             Membership.class,
-            RepresentativeEdge.class,
-            JoinDegrees.class,
+            GeneralGraphElement.class,
+            BuildTriangles.class,
             Membership.class,
-            RepresentativeEdge.class,
+            GeneralGraphElement.class,
             SequenceFileOutputFormat.class);
+
 
     join.waitForCompletion(true);
     

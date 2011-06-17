@@ -35,6 +35,8 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
@@ -44,11 +46,17 @@ import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 import org.apache.mahout.graph.model.SimpleParser;
 import org.apache.mahout.graph.model.Vertex;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.io.Resources;
 
 public class TestSimplifyGraph extends MahoutTestCase {
+
+  @Before
+  public void logLevel() {
+    Logger.getLogger("org.apache.mahout.graph").setLevel(Level.TRACE);
+  }
 
   @Test
   public void testSimplifyGraphMapper() {
@@ -174,8 +182,8 @@ public class TestSimplifyGraph extends MahoutTestCase {
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
-        "--output", outputDir.getAbsolutePath(),
-        "--tempDir", tempDir.getAbsolutePath() });
+        "--output", outputDir.getAbsolutePath(), "--tempDir",
+        tempDir.getAbsolutePath() });
 
     FileSystem sys = FileSystem.get(conf);
     Path output = new Path(
@@ -218,8 +226,8 @@ public class TestSimplifyGraph extends MahoutTestCase {
   @Test
   public void testSimplifyGraphJobParser() throws Exception {
 
-    File longInputFile = new File(Resources.getResource(
-        "simplifytest.csv").toURI());
+    File longInputFile = new File(Resources.getResource("simplifytest.csv")
+        .toURI());
 
     File inputFile = new File(Resources.getResource("simplifytestparser.csv")
         .toURI());
@@ -232,9 +240,8 @@ public class TestSimplifyGraph extends MahoutTestCase {
     SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
     simplifyGraphJob.setConf(conf);
     simplifyGraphJob.run(new String[] { "--input", inputFile.getAbsolutePath(),
-        "--output", outputDir.getAbsolutePath(),
-        "--tempDir", tempDir.getAbsolutePath(),
-        "--" + Parser.class.getCanonicalName(),
+        "--output", outputDir.getAbsolutePath(), "--tempDir",
+        tempDir.getAbsolutePath(), "--" + Parser.class.getCanonicalName(),
         LexicalVertexParser.class.getCanonicalName(), });
 
     FileSystem sys = FileSystem.get(conf);

@@ -27,7 +27,7 @@ import org.apache.mahout.graph.model.VertexWithDegree;
 
 /**
  * {@link Comparator} class to give a total ordering on augmented vertices. Use
- * the degree order and natural ordering of vertices as a tie-breaker. 
+ * the degree order and natural ordering of vertices as a tie-breaker.
  */
 public class TotalVertexOrder implements Comparator<VertexWithDegree> {
 
@@ -81,6 +81,28 @@ public class TotalVertexOrder implements Comparator<VertexWithDegree> {
     vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
     Vertex v1 = edge.getVertex1();
     vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
+    return vertices;
+  }
+
+  /**
+   * Return the vertices of two {@link RepresentativeEdge}s as an ordered set
+   * according to the ordering of this class.
+   * 
+   * @param e0
+   *          One of the edges to get the vertices of
+   * @param e1
+   *          One of the edges to get the vertices of
+   * @return An ordered set of vertices
+   */
+  public static Set<VertexWithDegree> getOrdered(RepresentativeEdge e0,
+      RepresentativeEdge e1) {
+    Set<VertexWithDegree> vertices = new TreeSet<VertexWithDegree>(instance());
+    for (RepresentativeEdge edge : new RepresentativeEdge[] { e0, e1 }) {
+      Vertex v0 = edge.getVertex0();
+      vertices.add(new VertexWithDegree(v0, edge.getDegree(v0)));
+      Vertex v1 = edge.getVertex1();
+      vertices.add(new VertexWithDegree(v1, edge.getDegree(v1)));
+    }
     return vertices;
   }
 }

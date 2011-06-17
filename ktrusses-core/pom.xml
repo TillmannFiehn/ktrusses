@@ -48,10 +48,6 @@
        <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>${hadoop.groupId}</groupId>
-      <artifactId>hadoop-core</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>

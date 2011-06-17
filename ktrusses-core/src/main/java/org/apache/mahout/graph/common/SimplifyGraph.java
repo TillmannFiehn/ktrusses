@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.log4j.Logger;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -39,6 +40,8 @@ import org.apache.mahout.graph.model.Vertex;
  */
 public class SimplifyGraph {
 
+  private static Logger log = Logger.getLogger(SimplifyGraph.class);
+  
   /**
    * Bins edges by an ordered membership set. Scatters edges with at least two
    * vertices in the membership set.
@@ -58,14 +61,14 @@ public class SimplifyGraph {
         Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
         parser = (Parser) parserclass.newInstance();
       } catch (ClassNotFoundException e) {
-        e.printStackTrace();
-        // TODO log this error
+        log.error(e.getMessage());
+        log.warn(e.getMessage(), e);
       } catch (InstantiationException e) {
-        // TODO log this error
-        e.printStackTrace();
+        log.error(e.getMessage());
+        log.warn(e.getMessage(), e);
       } catch (IllegalAccessException e) {
-        // TODO log this error
-        e.printStackTrace();
+        log.error(e.getMessage());
+        log.warn(e.getMessage(), e);
       }
       if (parser == null) {
         parser = new SimpleParser();
@@ -80,11 +83,14 @@ public class SimplifyGraph {
       Vector<Vertex> members = parser.parse(description);
       if (members != null && members.size() > 1) {
         Iterator<Vertex> i = members.iterator();
-        Vertex node0 = i.next();
-        Vertex node1 = i.next();
-        RepresentativeEdge edge = new RepresentativeEdge(node0, node1);
+        Vertex v0 = i.next();
+        Vertex v1 = i.next();
+        RepresentativeEdge edge = new RepresentativeEdge(v0, v1);
         Membership mem = new Membership();
-        mem.setMembers(members);
+        mem.addMember(v0).addMember(v1);
+        log.trace(String.format(
+            "representative no-loop edge %s, binned under %s.",
+            edge, mem));
         ctx.write(mem, edge);
       }
 
@@ -110,6 +116,9 @@ public class SimplifyGraph {
         edges.put(edge, edge);
       }
       for (RepresentativeEdge edge : edges.values()) {
+        log.trace(String.format(
+            "representative no-loop unique edge %s, binned under %s.",
+            edge, key));
         ctx.write(key, edge);
       }
     }
