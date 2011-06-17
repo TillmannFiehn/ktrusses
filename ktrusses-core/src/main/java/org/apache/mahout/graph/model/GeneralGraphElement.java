@@ -112,7 +112,7 @@ public class GeneralGraphElement implements
     type = Type.values()[ordinal];
     switch (type) {
     case RepresentativeEdge:
-      value = (WritableComparable) new RepresentativeEdge();
+      value = new RepresentativeEdge();
       break;
     case Vertex:
       value = new Vertex();

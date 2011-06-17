@@ -127,7 +127,7 @@ public class AugmentGraphWithDegrees {
       log.trace(String.format(
           "fully augmentet edge %s, binned under %s.",
           edge, key));
-      ctx.write(key, new GeneralGraphElement((WritableComparable) edge));
+      ctx.write(key, new GeneralGraphElement(edge));
     }
   }
 }
