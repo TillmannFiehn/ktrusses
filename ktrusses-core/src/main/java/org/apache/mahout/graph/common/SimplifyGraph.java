@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -49,7 +50,7 @@ public class SimplifyGraph {
    * 
    */
   public static class SimplifyGraphMapper extends
-      Mapper<Object, Text, Membership, RepresentativeEdge> {
+      Mapper<Object, Text, Membership, GenericGraphElement> {
 
     Parser parser;
 
@@ -92,7 +93,7 @@ public class SimplifyGraph {
         log.trace(String.format(
             "representative no-loop edge %s, binned under %s.",
             edge, mem));
-        ctx.write(mem, edge);
+        ctx.write(mem, new GenericGraphElement(edge));
       }
 
     }
@@ -102,14 +103,15 @@ public class SimplifyGraph {
    * Removes duplicate edges.
    */
   public static class SimplifyGraphReducer extends
-      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics,
         Context ctx) throws InterruptedException, IOException {
 
       Map<RepresentativeEdge, RepresentativeEdge> edges = new HashMap<RepresentativeEdge, RepresentativeEdge>();
-      for (RepresentativeEdge edge : values) {
+      for (GenericGraphElement generic : generics) {
+        RepresentativeEdge edge = (RepresentativeEdge) generic.getValue();
         RepresentativeEdge prev = edges.get(edge);
         if (prev != null) {
           // TODO implement aggregation
@@ -120,7 +122,7 @@ public class SimplifyGraph {
         log.trace(String.format(
             "representative no-loop unique edge %s, binned under %s.",
             edge, key));
-        ctx.write(key, edge);
+        ctx.write(key, new GenericGraphElement(edge));
       }
     }
   }

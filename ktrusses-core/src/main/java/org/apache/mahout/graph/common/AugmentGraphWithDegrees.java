@@ -36,20 +36,29 @@ import org.slf4j.LoggerFactory;
  */
 public class AugmentGraphWithDegrees {
 
-  private static Logger log = LoggerFactory.getLogger(AugmentGraphWithDegrees.class);
+  private static Logger log = LoggerFactory
+      .getLogger(AugmentGraphWithDegrees.class);
 
   /**
    * Sends every edge to each vertices
    */
   public static class ScatterEdges extends
-      Mapper<Object, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Mapper<Object, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void map(Object key, RepresentativeEdge value, Context ctx)
+    public void map(Object key, GenericGraphElement generic, Context ctx)
         throws IOException, InterruptedException {
 
-      ctx.write(new Membership().addMember(value.getVertex0()), RepresentativeEdge.duplicate(value));
-      ctx.write(new Membership().addMember(value.getVertex1()), RepresentativeEdge.duplicate(value));
+      ctx.write(
+          new Membership().addMember(((RepresentativeEdge) generic.getValue())
+              .getVertex0()),
+          new GenericGraphElement(RepresentativeEdge
+              .duplicate((RepresentativeEdge) generic.getValue())));
+      ctx.write(
+          new Membership().addMember(((RepresentativeEdge) generic.getValue())
+              .getVertex1()),
+          new GenericGraphElement(RepresentativeEdge
+              .duplicate((RepresentativeEdge) generic.getValue())));
 
     }
   }
@@ -59,16 +68,17 @@ public class AugmentGraphWithDegrees {
    * degree information for the key vertex
    */
   public static class SumDegrees extends
-      Reducer<Membership, RepresentativeEdge, Membership, RepresentativeEdge> {
+      Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics,
         Context ctx) throws IOException, InterruptedException {
       long degree = 0;
       List<RepresentativeEdge> edges = new LinkedList<RepresentativeEdge>();
-      Iterator<RepresentativeEdge> i = values.iterator();
+      Iterator<GenericGraphElement> i = generics.iterator();
       while (i.hasNext()) {
-        edges.add(RepresentativeEdge.duplicate(i.next()));
+        edges.add(RepresentativeEdge.duplicate((RepresentativeEdge) i.next()
+            .getValue()));
         degree++; // calculate degree
       }
 
@@ -80,10 +90,9 @@ public class AugmentGraphWithDegrees {
         edge.setDegree(v, degree); // augment the edge
         Membership newkey = new Membership().addMember(edge.getVertex0())
             .addMember(edge.getVertex1());
-        log.trace(String.format(
-            "augmentet edge %s, binned under %s.",
-            edge, newkey));
-        ctx.write(newkey, edge);
+        log.trace(String.format("augmentet edge %s, binned under %s.", edge,
+            newkey));
+        ctx.write(newkey, new GenericGraphElement(edge));
       }
 
     }
@@ -93,16 +102,17 @@ public class AugmentGraphWithDegrees {
    * Joins identical edges assuring degree augmentations for both nodes
    */
   public static class JoinDegrees extends
-      Reducer<Membership, RepresentativeEdge, Membership, GenericGraphElement> {
+      Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<RepresentativeEdge> values,
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics,
         Context ctx) throws IOException, InterruptedException {
       long d0 = Integer.MIN_VALUE;
       long d1 = Integer.MIN_VALUE;
       List<RepresentativeEdge> edges = new LinkedList<RepresentativeEdge>();
-      for (RepresentativeEdge edge : values) {
-        edge = RepresentativeEdge.duplicate(edge);
+      for (GenericGraphElement generic : generics) {
+        RepresentativeEdge edge = RepresentativeEdge
+            .duplicate((RepresentativeEdge) generic.getValue());
         edges.add(edge);
         if (d0 < 0) {
           Vertex v = edge.getVertex0();
@@ -123,8 +133,7 @@ public class AugmentGraphWithDegrees {
       Vertex v1 = edge.getVertex1();
       edge.setDegree(v1, d1);
 
-      log.trace(String.format(
-          "fully augmentet edge %s, binned under %s.",
+      log.trace(String.format("fully augmentet edge %s, binned under %s.",
           edge, key));
       ctx.write(key, new GenericGraphElement(edge));
     }

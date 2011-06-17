@@ -28,6 +28,7 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -77,8 +78,8 @@ public class SimplifyGraphJob extends AbstractJob {
     Path outputPath = getOutputPath();
 
     Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class,
-        SimplifyGraphMapper.class, Membership.class, RepresentativeEdge.class,
-        SimplifyGraphReducer.class, Membership.class, RepresentativeEdge.class,
+        SimplifyGraphMapper.class, Membership.class, GenericGraphElement.class,
+        SimplifyGraphReducer.class, Membership.class, GenericGraphElement.class,
         SequenceFileOutputFormat.class);
 
     if (parserImplementationClass != null) { // pass parser parameter to the job

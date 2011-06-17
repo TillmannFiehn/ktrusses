@@ -150,4 +150,13 @@ public class GenericGraphElement implements
     return value.toString();
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if(o instanceof GenericGraphElement) {
+      GenericGraphElement g = (GenericGraphElement) o;
+      return type.equals(g.type) && value.equals(g.value);
+    } else {
+      return false;
+    }
+  }
 }

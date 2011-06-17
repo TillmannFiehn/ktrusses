@@ -64,8 +64,8 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
     // scatter the edges to each of the vertices and count degree
     Job scatter = prepareJob(inputPath, augmentedEdgesPath,
         SequenceFileInputFormat.class, ScatterEdges.class, Membership.class,
-        RepresentativeEdge.class, SumDegrees.class, Membership.class,
-        RepresentativeEdge.class, SequenceFileOutputFormat.class);
+        GenericGraphElement.class, SumDegrees.class, Membership.class,
+        GenericGraphElement.class, SequenceFileOutputFormat.class);
 
     scatter.waitForCompletion(true);
 
@@ -73,7 +73,7 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
     // records
     Job join = prepareJob(augmentedEdgesPath, outputPath,
         SequenceFileInputFormat.class, Mapper.class, Membership.class,
-        RepresentativeEdge.class, JoinDegrees.class, Membership.class,
+        GenericGraphElement.class, JoinDegrees.class, Membership.class,
         GenericGraphElement.class, SequenceFileOutputFormat.class);
 
     join.waitForCompletion(true);

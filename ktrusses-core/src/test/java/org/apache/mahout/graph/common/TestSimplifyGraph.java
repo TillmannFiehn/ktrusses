@@ -39,6 +39,7 @@ import org.apache.mahout.common.DummyRecordWriter;
 import org.apache.mahout.common.MahoutTestCase;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
 import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
+import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
 import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
@@ -56,7 +57,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
     try {
       Configuration conf = new Configuration();
       conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+      DummyRecordWriter<Membership, GenericGraphElement> writer = new DummyRecordWriter<Membership, GenericGraphElement>();
 
       SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
@@ -70,7 +71,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
         simplifier.map(null, new Text(line), ctx);
       }
 
-      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
+      Map<Membership, List<GenericGraphElement>> output = writer.getData();
 
       assertEquals(1, output.size());
 
@@ -78,7 +79,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
       key.addMember(new Vertex(1L));
       key.addMember(new Vertex(2L));
 
-      List<RepresentativeEdge> edges = output.get(key);
+      List<GenericGraphElement> edges = output.get(key);
 
       assertNotNull(edges);
 
@@ -87,8 +88,8 @@ public class TestSimplifyGraph extends MahoutTestCase {
       RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
           2L));
 
-      assertTrue(edges.remove(e));
-      assertTrue(edges.remove(e));
+      assertTrue(edges.remove(new GenericGraphElement(e)));
+      assertTrue(edges.remove(new GenericGraphElement(e)));
 
     } catch (IOException e) {
       throw new RuntimeException();
@@ -103,7 +104,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
     try {
       Configuration conf = new Configuration();
       conf.set(Parser.class.getCanonicalName(), SimpleParser.class.getName());
-      DummyRecordWriter<Membership, RepresentativeEdge> writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+      DummyRecordWriter<Membership, GenericGraphElement> writer = new DummyRecordWriter<Membership, GenericGraphElement>();
 
       SimplifyGraphMapper simplifier = new SimplifyGraphMapper();
 
@@ -117,16 +118,16 @@ public class TestSimplifyGraph extends MahoutTestCase {
         simplifier.map(null, new Text(line), ctxm);
       }
 
-      Map<Membership, List<RepresentativeEdge>> output = writer.getData();
+      Map<Membership, List<GenericGraphElement>> output = writer.getData();
 
       SimplifyGraphReducer aggregator = new SimplifyGraphReducer();
 
-      writer = new DummyRecordWriter<Membership, RepresentativeEdge>();
+      writer = new DummyRecordWriter<Membership, GenericGraphElement>();
 
       SimplifyGraphReducer.Context ctxr = DummyRecordWriter.build(aggregator,
-          conf, writer, Membership.class, RepresentativeEdge.class);
+          conf, writer, Membership.class, GenericGraphElement.class);
 
-      for (Entry<Membership, List<RepresentativeEdge>> entry : output
+      for (Entry<Membership, List<GenericGraphElement>> entry : output
           .entrySet()) {
 
         aggregator.reduce(entry.getKey(), entry.getValue(), ctxr);
@@ -141,7 +142,7 @@ public class TestSimplifyGraph extends MahoutTestCase {
       key.addMember(new Vertex(1L));
       key.addMember(new Vertex(2L));
 
-      List<RepresentativeEdge> edges = output.get(key);
+      List<GenericGraphElement> edges = output.get(key);
 
       assertNotNull(edges);
 
@@ -150,8 +151,8 @@ public class TestSimplifyGraph extends MahoutTestCase {
       RepresentativeEdge e = new RepresentativeEdge(new Vertex(1L), new Vertex(
           2L));
 
-      assertTrue(edges.remove(e));
-      assertFalse(edges.remove(e));
+      assertTrue(edges.remove(new GenericGraphElement(e)));
+      assertFalse(edges.remove(new GenericGraphElement(e)));
 
     } catch (IOException e) {
       throw new RuntimeException();
@@ -184,11 +185,11 @@ public class TestSimplifyGraph extends MahoutTestCase {
     HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
         inputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
-    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    SequenceFileRecordReader<Membership, GenericGraphElement> r = new SequenceFileRecordReader<Membership, GenericGraphElement>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
-      RepresentativeEdge e = r.getCurrentValue();
+      RepresentativeEdge e = (RepresentativeEdge) r.getCurrentValue().getValue();
       System.out.println(String.format(
           "Job returned %s binned under membership %s. Testing map...", e, m));
       assertEquals(edges.remove(m), e);
@@ -243,11 +244,11 @@ public class TestSimplifyGraph extends MahoutTestCase {
     HashMap<Membership, RepresentativeEdge> edges = getTestFileContents(
         longInputFile, sys, conf);
     FileSplit s = new FileSplit(output, 0L, outputStat.getLen(), new String[0]);
-    SequenceFileRecordReader<Membership, RepresentativeEdge> r = new SequenceFileRecordReader<Membership, RepresentativeEdge>();
+    SequenceFileRecordReader<Membership, GenericGraphElement> r = new SequenceFileRecordReader<Membership, GenericGraphElement>();
     r.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (r.nextKeyValue()) {
       Membership m = r.getCurrentKey();
-      RepresentativeEdge e = r.getCurrentValue();
+      RepresentativeEdge e = (RepresentativeEdge) r.getCurrentValue().getValue();
       System.out.println(String.format(
           "Job returned %s binned under membership %s. Testing map...", e, m));
       assertEquals(edges.remove(m), e);
