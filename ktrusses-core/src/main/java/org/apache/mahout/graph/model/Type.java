@@ -45,4 +45,12 @@ public enum Type {
    * {@link Triangle}
    */
   Triangle,
+  /**
+   * {@link Zone}
+   */
+  Zone,
+  /**
+   * {@link ZoneAssignment}
+   */
+  ZoneAssignment,
 }
