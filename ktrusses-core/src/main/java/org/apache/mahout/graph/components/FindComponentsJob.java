@@ -22,4 +22,5 @@ package org.apache.mahout.graph.components;
  *
  */
 public class FindComponentsJob {
+  //FIXME implement this class
 }
