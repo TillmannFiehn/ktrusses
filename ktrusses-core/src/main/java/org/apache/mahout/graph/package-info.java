@@ -2,9 +2,9 @@
  * This package brings some graph algorithms to
  * <em>Mahout</em>.
  * <ol>
- * 	<li><code>org.apache.mahout.graph.common</code> for a tool chain to
+ * 	<li>{@link org.apache.mahout.graph.common} for a tool chain to
  * 		prepare arbitrary graphs</li>
- * 	<li><code>org.apache.mahout.graph.model</code> to get to know the
+ * 	<li>{@link org.apache.mahout.graph.model} to get to know the
  * 		formats to use the results for further processing</li>
  * 	<li>{@link org.apache.mahout.graph.components.FindComponentsJob}
  * 		which finds the components of a graph.</li>

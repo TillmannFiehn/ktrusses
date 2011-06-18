@@ -34,21 +34,32 @@ import org.apache.mahout.graph.model.Parser;
 import org.apache.mahout.graph.model.RepresentativeEdge;
 
 /**
- * Simplifies a graph. That is: remove loops, aggregate edges to
- * {@link RepresentativeEdge }. The input file format is a
- * {@link TextInputFormat} which can be parsed via an implementation of
- * {@link Parser}.
+ * Simplifies a graph. That is:
  * 
- * This job accepts three input arguments
+ * <ol>
+ * <li>remove loops</li>
+ * <li>aggregate edges to {@link RepresentativeEdge }</li>
+ * </ol>
  * 
- * <pre>
- *  input
- *  output
- *  org.apache.mahout.graph.model.Parser
- * </pre>
+ * The input file format is a {@link TextInputFormat} which can be parsed via an
+ * implementation of {@link Parser}.
+ * 
+ * <p>
+ * This job accepts the following input arguments:
+ * <dl>
+ * <dt>input</dt>
+ * <dd>The path of the input file or directory</dd>
+ * <dt>output</dt>
+ * <dd>The path of output directory</dd>
+ * <dt>org.apache.mahout.graph.model.Parser</dt>
+ * <dd>An optional class implementing
+ * {@link org.apache.mahout.graph.model.Parser} that can be used to parse a
+ * variety of graphs</dd>
+ * </dl>
  * 
  * The output is a {@link SequenceFile} containing a {@link Membership} as key
- * and a {@link RepresentativeEdge} as value.
+ * and a {@link RepresentativeEdge} as value (contained in a
+ * {@link GenericGraphElement}).
  */
 public class SimplifyGraphJob extends AbstractJob {
 
@@ -79,8 +90,8 @@ public class SimplifyGraphJob extends AbstractJob {
 
     Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class,
         SimplifyGraphMapper.class, Membership.class, GenericGraphElement.class,
-        SimplifyGraphReducer.class, Membership.class, GenericGraphElement.class,
-        SequenceFileOutputFormat.class);
+        SimplifyGraphReducer.class, Membership.class,
+        GenericGraphElement.class, SequenceFileOutputFormat.class);
 
     if (parserImplementationClass != null) { // pass parser parameter to the job
                                              // if set

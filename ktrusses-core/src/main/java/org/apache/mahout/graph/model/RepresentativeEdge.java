@@ -26,7 +26,8 @@ import org.apache.hadoop.io.WritableComparable;
 /**
  * A representative edge to be operated on in several graph algorithms.
  */
-public class RepresentativeEdge extends Edge implements WritableComparable<RepresentativeEdge> {
+public class RepresentativeEdge extends Edge implements
+    WritableComparable<RepresentativeEdge> {
 
   /**
    * Make a deep copy of the stated object.
@@ -43,6 +44,7 @@ public class RepresentativeEdge extends Edge implements WritableComparable<Repre
     dup.v1 = Vertex.duplicate(orig.v1);
     return dup;
   }
+
   /**
    * the vertices
    */
@@ -177,6 +179,7 @@ public class RepresentativeEdge extends Edge implements WritableComparable<Repre
    * @param v
    *          the vertex which is the augmented degree to be looked up for
    * @return the degree if it has been augmented before
+   *         {@link Integer #MIN_VALUE} otherwise
    * @throws IllegalArgumentException
    *           if the vertex <code>v</code> does not belong to this edge
    */
@@ -189,10 +192,12 @@ public class RepresentativeEdge extends Edge implements WritableComparable<Repre
       throw new IllegalArgumentException();
     }
   }
-    
+
   @Override
   public String toString() {
-    return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(), (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(), (d1 >= 0 ? new Long(d1).toString() : "-"));
+    return String.format("(%d (%s)) <-> (%d (%s))", v0.getId(),
+        (d0 >= 0 ? new Long(d0).toString() : "-"), v1.getId(),
+        (d1 >= 0 ? new Long(d1).toString() : "-"));
   }
 
   /**

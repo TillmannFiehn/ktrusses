@@ -20,6 +20,7 @@ package org.apache.mahout.graph.common;
 import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
@@ -36,6 +37,15 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
 /**
  * Augments a graph with degree information for each vertex which is the number
  * of {@link RepresentativeEdge}s that point to or from this very vertex.
+ * 
+ * <p>
+ * Both input and output are {@link SequenceFile} containing a
+ * {@link Membership} as key and a {@link GenericGraphElement} as values.
+ * 
+ * <p>
+ * The input has to contain {@link RepresentativeEdge}s and the output contains
+ * {@link RepresentativeEdge}s as well but augmented, each binned under the
+ * order set of vertex membership.
  */
 public class AugmentGraphWithDegreesJob extends AbstractJob {
 

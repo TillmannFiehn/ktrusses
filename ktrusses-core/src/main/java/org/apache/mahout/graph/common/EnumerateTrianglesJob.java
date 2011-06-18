@@ -20,6 +20,7 @@ package org.apache.mahout.graph.common;
 import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
@@ -31,9 +32,19 @@ import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
 import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
 import org.apache.mahout.graph.model.GenericGraphElement;
 import org.apache.mahout.graph.model.Membership;
+import org.apache.mahout.graph.model.RepresentativeEdge;
 
 /**
  * Enumerates the triangles of a graph.
+ * 
+ * <p>
+ * Both input and output are {@link SequenceFile} containing a
+ * {@link Membership} as key and a {@link GenericGraphElement} as values.
+ * 
+ * <p>
+ * The input has to contain {@link RepresentativeEdge}s and the output contains
+ * {@link org.apache.mahout.graph.model.Triangle}s, each binned under the order
+ * set of vertex membership.
  */
 public class EnumerateTrianglesJob extends AbstractJob {
 
@@ -55,41 +66,28 @@ public class EnumerateTrianglesJob extends AbstractJob {
     Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
 
     Path inputPath = getInputPath();
-    Path triadsPath = new Path(tempDirPath, "triangles-" + System.currentTimeMillis());
+    Path triadsPath = new Path(tempDirPath, "triangles-"
+        + System.currentTimeMillis());
     Path outputPath = getOutputPath();
 
     // scatter the edges to lower degree vertex and build open triads
-    Job scatter = prepareJob(inputPath,
-            triadsPath,
-            SequenceFileInputFormat.class,
-            ScatterEdgesToLowerDegreeVertex.class,
-            Membership.class,
-            GenericGraphElement.class,
-            BuildOpenTriads.class,
-            Membership.class,
-            GenericGraphElement.class,
-            SequenceFileOutputFormat.class);
+    Job scatter = prepareJob(inputPath, triadsPath,
+        SequenceFileInputFormat.class, ScatterEdgesToLowerDegreeVertex.class,
+        Membership.class, GenericGraphElement.class, BuildOpenTriads.class,
+        Membership.class, GenericGraphElement.class,
+        SequenceFileOutputFormat.class);
 
     scatter.waitForCompletion(true);
-    
-    //join triads and edges pairwise to get all triangles
-    Job join = prepareJob(new Path(triadsPath + "," + inputPath),
-            outputPath,
-            SequenceFileInputFormat.class,
-            Mapper.class,
-            Membership.class,
-            GenericGraphElement.class,
-            BuildTriangles.class,
-            Membership.class,
-            GenericGraphElement.class,
-            SequenceFileOutputFormat.class);
 
+    // join triads and edges pairwise to get all triangles
+    Job join = prepareJob(new Path(triadsPath + "," + inputPath), outputPath,
+        SequenceFileInputFormat.class, Mapper.class, Membership.class,
+        GenericGraphElement.class, BuildTriangles.class, Membership.class,
+        GenericGraphElement.class, SequenceFileOutputFormat.class);
 
     join.waitForCompletion(true);
-    
-    
-    
+
     return 0;
   }
-  
+
 }
