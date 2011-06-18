@@ -118,8 +118,7 @@ public class FindKTrussesJob extends AbstractJob {
      * Simplify the graph first
      */
     Path simplifyInputPath = inputPath;
-    Path simplifyOutputPath = new Path(tempDirPath.getName()
-        + System.currentTimeMillis());
+    Path simplifyOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
     Job simplify = prepareJob(simplifyInputPath, simplifyOutputPath,
         TextInputFormat.class, SimplifyGraphMapper.class, Membership.class,
         GenericGraphElement.class, SimplifyGraphReducer.class,
@@ -143,8 +142,7 @@ public class FindKTrussesJob extends AbstractJob {
        */
       // scatter the edges to each of the vertices and count degree
       Path augmentInputPath = currentTrussesDirPath;
-      Path augmentTempDirPath = new Path(tempDirPath.getName()
-          + System.currentTimeMillis());
+      Path augmentTempDirPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
       Job scatter = prepareJob(augmentInputPath, augmentTempDirPath,
           SequenceFileInputFormat.class, ScatterEdges.class, Membership.class,
           GenericGraphElement.class, SumDegrees.class, Membership.class,
@@ -152,8 +150,7 @@ public class FindKTrussesJob extends AbstractJob {
       scatter.waitForCompletion(true);
       // join augmented edges with partial degree information to to complete
       // records
-      Path augmentOutputPath = new Path(tempDirPath.getName()
-          + System.currentTimeMillis());
+      Path augmentOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
       Job join = prepareJob(augmentTempDirPath, augmentOutputPath,
           SequenceFileInputFormat.class, Mapper.class, Membership.class,
           GenericGraphElement.class, JoinDegrees.class, Membership.class,
@@ -165,8 +162,7 @@ public class FindKTrussesJob extends AbstractJob {
        */
       Path enumerateInputPath = augmentOutputPath;
       // scatter the edges to lower degree vertex and build open triads
-      Path enumerateTempDirPath = new Path(tempDirPath.getName()
-          + System.currentTimeMillis());
+      Path enumerateTempDirPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
       Job scatterToLowerDegreeVertex = prepareJob(enumerateInputPath,
           enumerateTempDirPath, SequenceFileInputFormat.class,
           ScatterEdgesToLowerDegreeVertex.class, Membership.class,
@@ -174,8 +170,7 @@ public class FindKTrussesJob extends AbstractJob {
           GenericGraphElement.class, SequenceFileOutputFormat.class);
       scatterToLowerDegreeVertex.waitForCompletion(true);
       // join triads and edges pairwise to get all triangles
-      Path enumerateOutputPath = new Path(tempDirPath.getName()
-          + System.currentTimeMillis());
+      Path enumerateOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
       Job joinTriadsAndEdges = prepareJob(new Path(enumerateTempDirPath + ","
           + enumerateInputPath), enumerateOutputPath,
           SequenceFileInputFormat.class, Mapper.class, Membership.class,
@@ -187,21 +182,20 @@ public class FindKTrussesJob extends AbstractJob {
        * Drop edges with insufficient support
        */
       Path checkSupportInputPath = enumerateOutputPath;
-      Path checkSupportOutputPath = new Path(tempDirPath.getName()
-          + System.currentTimeMillis());
+//      Path checkSupportOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
+      Path checkSupportOutputPath = outputPath; // FIXME remove this when job is complete
       Job checkTrianglesForSupport = prepareJob(checkSupportInputPath,
           checkSupportOutputPath, SequenceFileInputFormat.class,
           SplitTrianglesToEdges.class, Membership.class,
           GenericGraphElement.class, DropUnsupportedEdges.class,
           Membership.class, GenericGraphElement.class,
           SequenceFileOutputFormat.class);
-      checkTrianglesForSupport.getConfiguration().set(FindKTrusses.K,
-          Integer.toString(k));
+      checkTrianglesForSupport.getConfiguration().setInt(FindKTrusses.K, k);
       checkTrianglesForSupport.waitForCompletion(true);
 
       // FIXME check for dropped edges and if no more dropped break
       currentTrussesDirPath = checkSupportOutputPath;
-      if (isDroppedSupportedEdges == false) {
+      if (isDroppedSupportedEdges == false || true) {
         break;
       }
 

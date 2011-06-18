@@ -71,7 +71,7 @@ public class FindKTrusses {
 
     @Override
     public void setup(Context ctx) {
-      k = Integer.parseInt(ctx.getConfiguration().get(K));
+      k = ctx.getConfiguration().getInt(K, 3); //TODO make this default value configurable
 
     }
 
