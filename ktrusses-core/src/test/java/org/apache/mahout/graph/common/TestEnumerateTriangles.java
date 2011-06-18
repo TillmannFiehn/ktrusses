@@ -128,7 +128,7 @@ public class TestEnumerateTriangles extends MahoutTestCase {
     FileStatus stat = sys.getFileStatus(path);
     FileSplit s = new FileSplit(path, 0L, stat.getLen(), new String[0]);
     Parser parser = new SimpleParser();
-    HashMap<Vertex, Membership> vertexes = new HashMap<Vertex, Membership>();
+    HashMap<Vertex, Membership> vertices = new HashMap<Vertex, Membership>();
     LineRecordReader l = new LineRecordReader();
     l.initialize(s, new TaskAttemptContext(conf, new TaskAttemptID()));
     while (l.nextKeyValue()) {
@@ -136,25 +136,25 @@ public class TestEnumerateTriangles extends MahoutTestCase {
       Vector<Vertex> members = parser.parse(t);
       if (members != null && members.size() > 1) {
         for (Vertex vertex : members) {
-          Membership neighbours = vertexes.containsKey(vertex) ? vertexes
+          Membership neighbours = vertices.containsKey(vertex) ? vertices
               .get(vertex) : new Membership();
           for (Vertex v : members)
             if (!v.equals(vertex))
               neighbours.addMember(v);
-          vertexes.put(vertex, neighbours);
+          vertices.put(vertex, neighbours);
         }
       }
     }
     HashMap<Membership, Triangle> triangles = new HashMap<Membership, Triangle>();
     HashSet<Vertex> visited = new HashSet<Vertex>();
-    for (Vertex v1 : vertexes.keySet()) {
-      for (Vertex v2 : vertexes.get(v1).getMembers()) {
+    for (Vertex v1 : vertices.keySet()) {
+      for (Vertex v2 : vertices.get(v1).getMembers()) {
         if (visited.contains(v2))
           continue;
-        for (Vertex v3 : vertexes.get(v2).getMembers()) {
+        for (Vertex v3 : vertices.get(v2).getMembers()) {
           if (visited.contains(v2))
             continue;
-          if (vertexes.get(v3).getMembers().contains(v1)) {
+          if (vertices.get(v3).getMembers().contains(v1)) {
             Triangle t = new Triangle();
             t.addEdge(new RepresentativeEdge(v1, v2));
             t.addEdge(new RepresentativeEdge(v1, v3));
