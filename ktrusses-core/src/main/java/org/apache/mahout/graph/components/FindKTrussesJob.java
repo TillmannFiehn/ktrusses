@@ -83,7 +83,7 @@ import org.apache.mahout.graph.model.Parser;
  * </dl>
  * 
  * The output is a {@link SequenceFile} containing a {@link Membership} as key
- * and a {@link ZoneAssignment} as value (contained in a
+ * and a {@link org.apache.mahout.graph.model.ZoneAssignment} as value (contained in a
  * {@link GenericGraphElement}).
  */
 public class FindKTrussesJob extends AbstractJob {

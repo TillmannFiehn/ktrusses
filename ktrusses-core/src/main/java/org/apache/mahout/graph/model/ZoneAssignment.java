@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.hadoop.io.WritableComparable;
 
 /**
- * This is a {@link Zone} and {@Vertex} that has been assigned the very
+ * This is a {@link Zone} and {@link Vertex} that has been assigned the very
  * {@link Zone}.
  */
 public class ZoneAssignment implements WritableComparable<ZoneAssignment> {

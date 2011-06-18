@@ -55,7 +55,7 @@ public class FindComponents {
    * the incident to the vertex that is assigned with the assignment.
    * <p>
    * This class joins {@link Zone} to all the edges of the input, outputting the
-   * {@Zone} as value, binned under the membership set of the edge.
+   * {@link Zone} as value, binned under the membership set of the edge.
    */
   public static class AssignOneZoneToEdges extends
       Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
