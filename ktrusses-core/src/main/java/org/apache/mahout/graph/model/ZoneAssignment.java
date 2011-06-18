@@ -24,8 +24,8 @@ import java.io.IOException;
 import org.apache.hadoop.io.WritableComparable;
 
 /**
- * This is a {@link Zone} and {@GenericGraphElement} that
- * has been assigned the very {@link Zone}.
+ * This is a {@link Zone} and {@Vertex} that has been assigned the very
+ * {@link Zone}.
  */
 public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
 
@@ -35,21 +35,21 @@ public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
   private Zone z;
 
   /**
-   * the graph element that is assigned the zone
+   * the vertex that is assigned the zone
    */
-  private GenericGraphElement g;
+  private Vertex v;
 
   /**
    * Create an instance of a zone assignment.
    * 
    * @param z
    *          The zone to be assigned
-   * @param g
-   *          The graph element that is assigned the zone
+   * @param v
+   *          The vertex that is assigned the zone
    */
-  public ZoneAssignment(Zone z, GenericGraphElement g) {
+  public ZoneAssignment(Zone z, Vertex v) {
     this.z = z;
-    this.g = g;
+    this.v = v;
   }
 
   /**
@@ -60,15 +60,13 @@ public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
 
   /**
    * This method returns true if the other instance is either a
-   * {@link ZoneAssignment } with degree equal to this instance and vertex equal
-   * to this instance's vertex or other instance is a {@link Vertex} and equals
-   * this instance's vertex.
+   * {@link ZoneAssignment } with zone and vertex equal to this instance.
    */
   @Override
   public boolean equals(Object o) {
     if (o instanceof ZoneAssignment) {
       boolean is = z.equals(((ZoneAssignment) o).z);
-      is = is && g.equals(((ZoneAssignment) o).g);
+      is = is && v.equals(((ZoneAssignment) o).v);
       return is;
     } else {
       return false;
@@ -78,21 +76,22 @@ public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
   @Override
   public String toString() {
     VertexWithDegree v = z.getVertex();
-    return String.format("%s (%d)", v.getVertex(), v.getDegree());
+    return String
+        .format("[%s (%d)] (%s)", v.getVertex(), v.getDegree(), this.v);
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
     z = new Zone();
     z.readFields(in);
-    g = new GenericGraphElement();
-    g.readFields(in);
+    v = new Vertex();
+    v.readFields(in);
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     z.write(out);
-    g.write(out);
+    v.write(out);
   }
 
   /**
@@ -101,14 +100,14 @@ public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
   @Override
   public int compareTo(ZoneAssignment o) {
     int zone = z.compareTo(o.z);
-    int generic = g.compareTo(o.g);
-    if (zone == 0 && generic == 0) {
+    int vertex = v.compareTo(o.v);
+    if (zone == 0 && vertex == 0) {
       return 0;
     } else {
       if (zone != 0) {
         return zone;
       } else {
-        return generic;
+        return vertex;
       }
     }
   }
@@ -123,12 +122,12 @@ public class ZoneAssignment implements WritableComparable<ZoneAssignment> {
   }
 
   /**
-   * Get the graph element that was assigned the zone
+   * Get the vertex that was assigned the zone
    * 
-   * @return The graph element
+   * @return The vertex that had been assigned
    */
-  public GenericGraphElement getValue() {
-    return g;
+  public Vertex getVertex() {
+    return v;
   }
 
 }
