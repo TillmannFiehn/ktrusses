@@ -32,29 +32,6 @@ public class GenericGraphElement implements
     WritableComparable<GenericGraphElement> {
 
   /**
-   * Constants to distinguish between different types that can be contained by
-   * {@link GenericGraphElement }
-   */
-  public static enum Type {
-    /**
-     * {@link RepresentativeEdge}
-     */
-    RepresentativeEdge,
-    /**
-     * {@link Vertex}
-     */
-    Vertex,
-    /**
-     * {@link OpenTriad}
-     */
-    OpenTriad,
-    /**
-     * {@link Triangle}
-     */
-    Triangle,
-  }
-
-  /**
    * Save the type as a {@link Type } field here. Represented as an integer
    * ordinal in the files
    */
@@ -144,7 +121,7 @@ public class GenericGraphElement implements
       throw new IllegalArgumentException();
     }
   };
-  
+
   @Override
   public String toString() {
     return value.toString();
@@ -152,7 +129,7 @@ public class GenericGraphElement implements
 
   @Override
   public boolean equals(Object o) {
-    if(o instanceof GenericGraphElement) {
+    if (o instanceof GenericGraphElement) {
       GenericGraphElement g = (GenericGraphElement) o;
       return type.equals(g.type) && value.equals(g.value);
     } else {
