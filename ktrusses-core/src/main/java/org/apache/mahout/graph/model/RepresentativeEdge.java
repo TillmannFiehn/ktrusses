@@ -205,8 +205,8 @@ public class RepresentativeEdge extends Edge implements
    */
   @Override
   public int compareTo(RepresentativeEdge o) {
-    Membership i = new Membership().addMember(v0).addMember(v1);
-    Membership it = new Membership().addMember(o.v0).addMember(o.v1);
+    Membership i = Membership.factorize(this);
+    Membership it = Membership.factorize(o);
     return i.compareTo(it);
   }
 }

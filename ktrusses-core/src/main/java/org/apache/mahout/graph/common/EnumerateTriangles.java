@@ -54,13 +54,15 @@ public class EnumerateTriangles {
     public void map(Object key, GenericGraphElement generic, Context ctx)
         throws IOException, InterruptedException {
 
-      Set<VertexWithDegree> order = TotalVertexOrder.getOrdered((RepresentativeEdge) generic.getValue());
+      Set<VertexWithDegree> order = TotalVertexOrder
+          .getOrdered((RepresentativeEdge) generic.getValue());
       VertexWithDegree lower = order.iterator().next();
       if (lower.getDegree() > 1) {
-        log.trace(String.format(
-            "edge %s under lower degree vertex %s.",
+        log.trace(String.format("edge %s under lower degree vertex %s.",
             generic, lower));
-        ctx.write(new Membership().addMember(lower.getVertex()), generic);
+        // build the new key of the lower vertex
+        Membership newkey = new Membership().addMember(lower.getVertex());
+        ctx.write(newkey, generic);
       }
     }
   }
@@ -81,14 +83,16 @@ public class EnumerateTriangles {
       List<RepresentativeEdge> map = new LinkedList<RepresentativeEdge>();
 
       for (GenericGraphElement generic : generics) { // nested loop join
-        RepresentativeEdge probe = RepresentativeEdge.duplicate((RepresentativeEdge) generic.getValue());
+        RepresentativeEdge probe = RepresentativeEdge
+            .duplicate((RepresentativeEdge) generic.getValue());
         for (RepresentativeEdge build : map) {
 
           if (!probe.equals(build)) {
-            Iterator<VertexWithDegree> iterator = TotalVertexOrder.getOrdered(build, probe).iterator(); 
-            VertexWithDegree lower = iterator.next(); 
+            Iterator<VertexWithDegree> iterator = TotalVertexOrder.getOrdered(
+                build, probe).iterator();
+            VertexWithDegree lower = iterator.next();
             iterator.remove();
-            // build the new key
+            // build the new key of the outer vertices
             Membership newkey = new Membership();
             newkey.addMember(iterator.next().getVertex());
             newkey.addMember(iterator.next().getVertex());
@@ -97,8 +101,7 @@ public class EnumerateTriangles {
             newvalue.setApex(lower.getVertex());
             newvalue.addEdge(probe);
             newvalue.addEdge(build);
-            log.trace(String.format(
-                "open triad under membership key %s.",
+            log.trace(String.format("open triad under membership key %s.",
                 newvalue, newkey));
             ctx.write(newkey, new GenericGraphElement(newvalue));
           }
@@ -116,12 +119,13 @@ public class EnumerateTriangles {
       Reducer<Membership, GenericGraphElement, Membership, GenericGraphElement> {
 
     @Override
-    public void reduce(Membership key, Iterable<GenericGraphElement> generics, Context ctx)
-        throws IOException, InterruptedException {
+    public void reduce(Membership key, Iterable<GenericGraphElement> generics,
+        Context ctx) throws IOException, InterruptedException {
       Set<RepresentativeEdge> edges = new TreeSet<RepresentativeEdge>();
       Set<OpenTriad> triads = new TreeSet<OpenTriad>();
       // TODO avoid NLJ via a smart merging and partitioning of input keys
-      for (GenericGraphElement generic : generics) { // build sets with separate inputs
+      for (GenericGraphElement generic : generics) { // build sets with separate
+                                                     // inputs
         @SuppressWarnings("rawtypes")
         WritableComparable value = generic.getValue();
         if (value instanceof OpenTriad) {
@@ -136,11 +140,8 @@ public class EnumerateTriangles {
           Triangle triangle = new Triangle();
           triangle.getEdges().addAll(triad.getEdges());
           triangle.addEdge(edge);
-          Membership m = new Membership().addMember(triad.getApex());
-          m.addMember(edge.getVertex0());
-          m.addMember(edge.getVertex1());
-          log.trace(String.format(
-              "triangle %s, binned unhip key %s.",
+          Membership m = Membership.factorize(triangle);
+          log.trace(String.format("triangle %s, binned unhip key %s.",
               triangle, m));
           ctx.write(m, new GenericGraphElement(triangle));
         }

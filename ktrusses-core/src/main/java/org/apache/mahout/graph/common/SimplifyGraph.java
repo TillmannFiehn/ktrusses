@@ -88,8 +88,7 @@ public class SimplifyGraph {
         Vertex v0 = i.next();
         Vertex v1 = i.next();
         RepresentativeEdge edge = new RepresentativeEdge(v0, v1);
-        Membership mem = new Membership();
-        mem.addMember(v0).addMember(v1);
+        Membership mem = Membership.factorize(edge);
         log.trace(String.format(
             "representative no-loop edge %s, binned under %s.",
             edge, mem));

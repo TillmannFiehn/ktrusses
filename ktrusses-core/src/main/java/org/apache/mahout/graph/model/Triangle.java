@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.Vector;
 
 import org.apache.hadoop.io.WritableComparable;
 
@@ -131,13 +130,7 @@ public class Triangle implements WritableComparable<Triangle> {
 
   @Override
   public String toString() {
-    Vector<RepresentativeEdge> edges = new Vector<RepresentativeEdge>(getEdges());
-    Membership m = new Membership().addMember(edges.get(0).getVertex0())
-        .addMember(edges.get(0).getVertex1())
-        .addMember(edges.get(1).getVertex0())
-        .addMember(edges.get(1).getVertex1())
-        .addMember(edges.get(2).getVertex0())
-        .addMember(edges.get(2).getVertex1());
+    Membership m = Membership.factorize(this);
     Iterator<Vertex> i = m.getMembers().iterator();
     return String.format("Δ(%s,%s,%s)", i.next(), i.next(), i.next());
     

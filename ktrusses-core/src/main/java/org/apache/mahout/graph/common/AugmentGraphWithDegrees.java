@@ -49,16 +49,16 @@ public class AugmentGraphWithDegrees {
     public void map(Object key, GenericGraphElement generic, Context ctx)
         throws IOException, InterruptedException {
 
-      ctx.write(
-          new Membership().addMember(((RepresentativeEdge) generic.getValue())
-              .getVertex0()),
-          new GenericGraphElement(RepresentativeEdge
-              .duplicate((RepresentativeEdge) generic.getValue())));
-      ctx.write(
-          new Membership().addMember(((RepresentativeEdge) generic.getValue())
-              .getVertex1()),
-          new GenericGraphElement(RepresentativeEdge
-              .duplicate((RepresentativeEdge) generic.getValue())));
+      RepresentativeEdge edge = (RepresentativeEdge) generic.getValue();
+      // build the new key of the first vertex
+      Membership firstkey = new Membership().addMember(edge.getVertex0());
+      ctx.write(firstkey,
+          new GenericGraphElement(RepresentativeEdge.duplicate(edge)));
+
+      // build the new key of the second vertex
+      Membership secondkey = new Membership().addMember(edge.getVertex1());
+      ctx.write(secondkey,
+          new GenericGraphElement(RepresentativeEdge.duplicate(edge)));
 
     }
   }
@@ -88,8 +88,7 @@ public class AugmentGraphWithDegrees {
       while (j.hasNext()) {
         RepresentativeEdge edge = j.next();
         edge.setDegree(v, degree); // augment the edge
-        Membership newkey = new Membership().addMember(edge.getVertex0())
-            .addMember(edge.getVertex1());
+        Membership newkey = Membership.factorize(edge);
         log.trace(String.format("augmentet edge %s, binned under %s.", edge,
             newkey));
         ctx.write(newkey, new GenericGraphElement(edge));

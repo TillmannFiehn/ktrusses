@@ -57,6 +57,51 @@ public class Membership implements WritableComparable<Membership> {
   }
 
   /**
+   * Utility factory method.
+   * 
+   * @param edge
+   *          An edge to get the membership from
+   * @return The membership of the edge
+   */
+  public static Membership factorize(RepresentativeEdge edge) {
+    Membership m = new Membership();
+    m.addMember(edge.getVertex0()).addMember(edge.getVertex1());
+    return m;
+  }
+
+  /**
+   * Utility factory method.
+   * 
+   * @param triad
+   *          A triad to get the membership from
+   * @return The membership of the triad
+   */
+  public static Membership factorize(OpenTriad triad) {
+    Collection<RepresentativeEdge> edges = triad.getEdges();
+    Membership m = new Membership();
+    for (RepresentativeEdge edge : edges) {
+      m.addMember(edge.getVertex0()).addMember(edge.getVertex1());
+    }
+    return m;
+  }
+
+  /**
+   * Utility factory method.
+   * 
+   * @param triangle
+   *          A triangle to get the membership from
+   * @return The membership of the triangle
+   */
+  public static Membership factorize(Triangle triangle) {
+    Collection<RepresentativeEdge> edges = triangle.getEdges();
+    Membership m = new Membership();
+    for (RepresentativeEdge edge : edges) {
+      m.addMember(edge.getVertex0()).addMember(edge.getVertex1());
+    }
+    return m;
+  }
+
+  /**
    * membership collection
    */
   private Collection<Vertex> members;
@@ -222,7 +267,7 @@ public class Membership implements WritableComparable<Membership> {
     }
     return hash;
   }
-  
+
   @Override
   public String toString() {
     return members.toString();
