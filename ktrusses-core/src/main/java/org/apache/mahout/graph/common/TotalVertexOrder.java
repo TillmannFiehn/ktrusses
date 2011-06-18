@@ -60,9 +60,11 @@ public class TotalVertexOrder implements Comparator<VertexWithDegree> {
       c = Integer.MAX_VALUE;
     } else {
       c = v.compareTo(w);
-      if (c == 0) {
-        c = v.getVertex().compareTo(w.getVertex());
-      }
+      // is redundant since this is done already by the native {@link
+      // VertexWithDegree #compareTo(VertexWithDegree) }
+      // if (c == 0) {
+      // c = v.getVertex().compareTo(w.getVertex());
+      // }
     }
     return c;
   }

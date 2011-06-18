@@ -17,12 +17,18 @@
 
 package org.apache.mahout.graph.model;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.hadoop.io.WritableComparable;
+
 /**
  * Container for a vertex augmented with a degree. The degree is interpreted as
  * the count of edges that start or end at the vertex.
  * 
  */
-public class VertexWithDegree implements Comparable<VertexWithDegree> {
+public class VertexWithDegree implements WritableComparable<VertexWithDegree> {
 
   /**
    * the degree of this instance
@@ -32,6 +38,12 @@ public class VertexWithDegree implements Comparable<VertexWithDegree> {
    * the vertex of this instance
    */
   private Vertex v;
+
+  /**
+   * Constructs an empty instance
+   */
+  public VertexWithDegree() {
+  }
 
   /**
    * Create an instance of an augmented vertex.
@@ -48,12 +60,20 @@ public class VertexWithDegree implements Comparable<VertexWithDegree> {
 
   /**
    * Compares the degree of this instance to the other and returns a negative
-   * number if this instance's degree is lower, 0 if the degrees equal and a
-   * positive number if this instance's degree is bigger than the other's.
+   * number if this instance's degree is lower, 0 if the degrees and vertices
+   * equal and a positive number if this instance's degree is bigger than the
+   * other's.
+   * 
+   * <p>
+   * If degrees equal but vertices do not the returned value is the same as
+   * {@link Vertex #compareTo(Vertex)}. This behavior is equivalent to
+   * {@link org.apache.mahout.graph.common.TotalVertexOrder}.
    */
   @Override
   public int compareTo(VertexWithDegree o) {
     int c = new Long(d).compareTo(new Long(o.d));
+    if (c == 0)
+      return v.compareTo(o.v);
     return c;
   }
 
@@ -92,9 +112,22 @@ public class VertexWithDegree implements Comparable<VertexWithDegree> {
   public long getDegree() {
     return d;
   }
-  
+
   @Override
   public String toString() {
-    return String.format("%s (%d)",v, d);
+    return String.format("%s (%d)", v, d);
+  }
+
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    v = new Vertex();
+    v.readFields(in);
+    d = in.readLong();
+  }
+
+  @Override
+  public void write(DataOutput out) throws IOException {
+    v.write(out);
+    out.writeLong(d);
   }
 }
