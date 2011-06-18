@@ -43,7 +43,7 @@ import org.apache.mahout.graph.model.RepresentativeEdge;
  * 
  * <p>
  * The input has to contain {@link RepresentativeEdge}s and the output contains
- * {@link org.apache.mahout.graph.model.Triangle}s, each binned under the order
+ * {@link org.apache.mahout.graph.model.Triangle}s, each binned under the ordered
  * set of vertex membership.
  */
 public class EnumerateTrianglesJob extends AbstractJob {

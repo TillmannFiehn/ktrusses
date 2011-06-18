@@ -37,13 +37,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Container for the {@link SimplifyGraphJob } mapper and reducer classes.
+ * Container for the {@link SimplifyGraphJob } {@link Mapper} and {@link Reducer}
+ * classes.
  * 
  */
 public class SimplifyGraph {
 
   private static Logger log = LoggerFactory.getLogger(SimplifyGraph.class);
-  
+
   /**
    * Bins edges by an ordered membership set. Scatters edges with at least two
    * vertices in the membership set.
@@ -58,20 +59,21 @@ public class SimplifyGraph {
     public void setup(Context ctx) {
       Configuration conf = ctx.getConfiguration();
       String classname = conf.get(Parser.class.getCanonicalName());
-      if( classname!=null ) try {
-        @SuppressWarnings("unchecked")
-        Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
-        parser = (Parser) parserclass.newInstance();
-      } catch (ClassNotFoundException e) {
-        log.error(e.getMessage());
-        log.warn(e.getMessage(), e);
-      } catch (InstantiationException e) {
-        log.error(e.getMessage());
-        log.warn(e.getMessage(), e);
-      } catch (IllegalAccessException e) {
-        log.error(e.getMessage());
-        log.warn(e.getMessage(), e);
-      }
+      if (classname != null)
+        try {
+          @SuppressWarnings("unchecked")
+          Class<Parser> parserclass = (Class<Parser>) Class.forName(classname);
+          parser = (Parser) parserclass.newInstance();
+        } catch (ClassNotFoundException e) {
+          log.error(e.getMessage());
+          log.warn(e.getMessage(), e);
+        } catch (InstantiationException e) {
+          log.error(e.getMessage());
+          log.warn(e.getMessage(), e);
+        } catch (IllegalAccessException e) {
+          log.error(e.getMessage());
+          log.warn(e.getMessage(), e);
+        }
       if (parser == null) {
         parser = new SimpleParser();
       }
@@ -90,8 +92,7 @@ public class SimplifyGraph {
         RepresentativeEdge edge = new RepresentativeEdge(v0, v1);
         Membership mem = Membership.factorize(edge);
         log.trace(String.format(
-            "representative no-loop edge %s, binned under %s.",
-            edge, mem));
+            "representative no-loop edge %s, binned under %s.", edge, mem));
         ctx.write(mem, new GenericGraphElement(edge));
       }
 
@@ -119,8 +120,8 @@ public class SimplifyGraph {
       }
       for (RepresentativeEdge edge : edges.values()) {
         log.trace(String.format(
-            "representative no-loop unique edge %s, binned under %s.",
-            edge, key));
+            "representative no-loop unique edge %s, binned under %s.", edge,
+            key));
         ctx.write(key, new GenericGraphElement(edge));
       }
     }

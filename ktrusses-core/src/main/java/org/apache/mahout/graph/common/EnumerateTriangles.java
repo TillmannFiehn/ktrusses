@@ -37,7 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Container for the {@link EnumerateTrianglesJob } mapper and reducer classes.
+ * Container for the {@link EnumerateTrianglesJob } {@link Mapper} and
+ * {@link Reducer} classes.
  */
 public class EnumerateTriangles {
 

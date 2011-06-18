@@ -32,7 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Container for the {@link AugmentGraphWithDegrees } mapper and reducer classes
+ * Container for the {@link AugmentGraphWithDegrees } {@link Mapper} and
+ * {@link Reducer} classes
  */
 public class AugmentGraphWithDegrees {
 
