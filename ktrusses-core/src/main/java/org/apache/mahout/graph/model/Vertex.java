@@ -21,27 +21,20 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.google.common.primitives.Longs;
 import org.apache.hadoop.io.WritableComparable;
 
-/**
- * Class representing a vertex in the graph to be analyzed.
- * 
- */
-public class Vertex implements WritableComparable<Vertex> {
+/** models a vertex in a graph */
+public class Vertex implements WritableComparable<Vertex>, Cloneable {
 
-  /**
-   * Make a deep copy of the stated object.
-   * 
-   * @param orig
-   *          The object to be copied
-   * @return A deep copy
-   */
-  public static Vertex duplicate(Vertex orig) {
-    Vertex dup = new Vertex();
-    dup.id = orig.id;
-    return dup;
+  private long id;
+
+  public Vertex() {}
+
+  public Vertex(long id) {
+    this.id = id;
   }
-  
+
   public static Vertex read(DataInput in) throws IOException {
     Vertex v = new Vertex();
     v.readFields(in);
@@ -53,75 +46,33 @@ public class Vertex implements WritableComparable<Vertex> {
     this.id = in.readLong();
   }
 
-  /**
-   * the id to identify this instance
-   */
-  private long id;
-
-  /**
-   * Constructs an empty vertex
-   */
-  public Vertex() {
-  }
-
-  /**
-   * Construct a vertex with <code>id</code> set to parameter <code>id</code>
-   * 
-   * @param id
-   *          The Vertex's id
-   */
-  public Vertex(long id) {
-    this.id = id;
-  }
-
   @Override
   public void write(DataOutput out) throws IOException {
-    out.writeLong(this.id);
+    out.writeLong(id);
   }
 
-  /**
-   * Set the <code>id</code> to parameter <code>id</code>
-   * 
-   * @param id
-   *          The <code>id</code> to apply to this instance
-   */
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  /**
-   * Get the id of the vertex
-   * 
-   * @return The id of the vertex
-   */
   public long getId() {
     return this.id;
   }
 
-  /**
-   * Compares this instance to another according to the <code>id</code>
-   * attribute.
-   */
+  /** Compares this instance to another according to the <code>id</code> attribute. */
   @Override
-  public int compareTo(Vertex o) {
-    return new Long(getId()).compareTo(new Long(o.getId()));
+  public int compareTo(Vertex other) {
+    return Longs.compare(id, other.id);
   }
 
-  /**
-   * Compares this instance to another according to the <code>id</code>
-   * attribute. The other instance can be a {@link VertexWithDegree} in which
-   * case the <code>id</code> is compared as well. Different degrees are
-   * silently ignored.
-   */
+  /** Compares this instance to another according to the <code>id</code> attribute */
   @Override
-  public boolean equals(Object o) {
-    if (o instanceof Vertex) {
-      return ((Vertex) o).id == id;
-    } else if (o instanceof VertexWithDegree) {
-      return ((VertexWithDegree) o).getVertex().equals(this);
-    } else {
-      return false;
+  public boolean equals(Object other) {
+    if (other instanceof Vertex) {
+      return ((Vertex) other).id == id;
     }
+    return false;
+  }
+
+  @Override
+  public Vertex clone() {
+    return new Vertex(id);
   }
 
   /**
@@ -129,12 +80,12 @@ public class Vertex implements WritableComparable<Vertex> {
    */
   @Override
   public int hashCode() {
-    return (int) id;
+    return Longs.hashCode(id);
   }
   
   @Override
   public String toString() {
-    return new Long(id).toString();
+    return "(" + id + ")";
   }
 
 }
