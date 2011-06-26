@@ -17,49 +17,37 @@
 
 package org.apache.mahout.graph.common;
 
-import java.util.Map;
+import java.io.IOException;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
-import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
-import org.apache.mahout.graph.model.GenericGraphElement;
-import org.apache.mahout.graph.model.Membership;
-import org.apache.mahout.graph.model.Parser;
-import org.apache.mahout.graph.model.RepresentativeEdge;
+import org.apache.mahout.common.Pair;
+import org.apache.mahout.graph.model.UndirectedEdge;
+import org.apache.mahout.graph.model.Vertex;
 
 /**
- * Simplifies a graph. That is:
+ * Simplifies a graph. That is: remove loops, aggregate edges to {@link org.apache.mahout.graph.model.UndirectedEdge }. The input file
+ * format is a {@link TextInputFormat}
  * 
- * <ol>
- * <li>remove loops</li>
- * <li>aggregate edges to {@link RepresentativeEdge }</li>
- * </ol>
+ * This job accepts two input arguments
  * 
- * The input file format is a {@link TextInputFormat} which can be parsed via an
- * implementation of {@link Parser}.
+ * <pre>
+ *  input
+ *  output
+ * </pre>
  * 
- * <p>
- * This job accepts the following input arguments:
- * <dl>
- * <dt>input</dt>
- * <dd>The path of the input file or directory</dd>
- * <dt>output</dt>
- * <dd>The path of output directory</dd>
- * <dt>org.apache.mahout.graph.model.Parser</dt>
- * <dd>An optional class implementing
- * {@link org.apache.mahout.graph.model.Parser} that can be used to parse a
- * variety of graphs</dd>
- * </dl>
- * 
- * The output is a {@link SequenceFile} containing a {@link Membership} as key
- * and a {@link RepresentativeEdge} as value (contained in a
- * {@link GenericGraphElement}).
+ * The output is a {@link SequenceFile} containing a {@link org.apache.mahout.graph.model.UndirectedEdge} as key
+ * and a {@link NullWritable} as value.
  */
 public class SimplifyGraphJob extends AbstractJob {
 
@@ -69,38 +57,51 @@ public class SimplifyGraphJob extends AbstractJob {
 
   @Override
   public int run(String[] args) throws Exception {
-
     addInputOption();
     addOutputOption();
-    addOption(
-        Parser.class.getCanonicalName(),
-        Parser.class.getCanonicalName(),
-        "A class implementing the Parser interface that should be used to parse the graph file.");
 
-    Map<String, String> parsedArgs = parseArguments(args);
-    if (parsedArgs == null) {
+    if (parseArguments(args) == null) {
       return -1;
     }
-
-    String parserImplementationClass = parsedArgs.get("--"
-        + Parser.class.getCanonicalName()); // extract parameter
 
     Path inputPath = getInputPath();
     Path outputPath = getOutputPath();
 
-    Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class,
-        SimplifyGraphMapper.class, Membership.class, GenericGraphElement.class,
-        SimplifyGraphReducer.class, Membership.class,
-        GenericGraphElement.class, SequenceFileOutputFormat.class);
-
-    if (parserImplementationClass != null) { // pass parser parameter to the job
-                                             // if set
-      simplify.getConfiguration().set(Parser.class.getCanonicalName(),
-          parserImplementationClass);
-    }
-
+    Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class, SimplifyGraphMapper.class,
+        UndirectedEdge.class, NullWritable.class, SimplifyGraphReducer.class, UndirectedEdge.class, NullWritable.class,
+        SequenceFileOutputFormat.class);
     simplify.waitForCompletion(true);
 
     return 0;
+  }
+
+  /** Bins edges by an ordered membership set. Scatters edges with at least two vertices in the membership set.*/
+  public static class SimplifyGraphMapper extends Mapper<Object, Text, UndirectedEdge, NullWritable> {
+
+    private static final Pattern SEPARATOR = Pattern.compile(",");
+    @Override
+    public void map(Object key, Text line, Context ctx) throws IOException, InterruptedException {
+      try {
+        String[] tokens = SEPARATOR.split(line.toString());
+        Pair<Vertex,Vertex> vertices = new Pair<Vertex,Vertex>(new Vertex(Long.parseLong(tokens[0])),
+            new Vertex(Long.parseLong(tokens[1])));
+        Vertex one = vertices.getFirst();
+        Vertex two = vertices.getSecond();
+        // remove loops and un-direct edges
+        if (!one.equals(two)) {
+          ctx.write(new UndirectedEdge(one, two), NullWritable.get());
+        }
+      } catch (NumberFormatException e) {
+        //ignore unparseable lines
+      }
+    }
+  }
+
+  public static class SimplifyGraphReducer extends Reducer<UndirectedEdge, NullWritable, UndirectedEdge, NullWritable> {
+    @Override
+    protected void reduce(UndirectedEdge edge, Iterable<NullWritable> values, Context ctx)
+        throws IOException, InterruptedException {
+      ctx.write(edge, NullWritable.get());
+    }
   }
 }

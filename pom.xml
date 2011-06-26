@@ -30,7 +30,7 @@
   </scm>
 
   <properties>
-    <mahout.version>0.5</mahout.version>
+    <mahout.version>0.6-SNAPSHOT</mahout.version>
     <mahout.collections.version>1.0</mahout.collections.version>
     <stratosphere.version>0.1</stratosphere.version>
     <house.keeping.base>${basedir}</house.keeping.base>
@@ -61,6 +61,12 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.8.1</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.easymock</groupId>
+        <artifactId>easymock</artifactId>
+        <version>3.0</version>
         <scope>test</scope>
       </dependency>
       <dependency>

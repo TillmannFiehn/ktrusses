@@ -17,35 +17,29 @@
 
 package org.apache.mahout.graph.common;
 
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.mahout.cf.taste.impl.common.FastIDSet;
+import org.apache.mahout.cf.taste.impl.common.LongPrimitiveIterator;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.ScatterEdges;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.SumDegrees;
-import org.apache.mahout.graph.model.GenericGraphElement;
-import org.apache.mahout.graph.model.Membership;
-import org.apache.mahout.graph.model.RepresentativeEdge;
+import org.apache.mahout.graph.model.UndirectedEdge;
+import org.apache.mahout.graph.model.UndirectedEdgeWithDegrees;
+import org.apache.mahout.graph.model.Vertex;
+import org.apache.mahout.graph.model.VertexWithDegree;
 
 /**
  * Augments a graph with degree information for each vertex which is the number
- * of {@link RepresentativeEdge}s that point to or from this very vertex.
- * 
- * <p>
- * Both input and output are {@link SequenceFile} containing a
- * {@link Membership} as key and a {@link GenericGraphElement} as values.
- * 
- * <p>
- * The input has to contain {@link RepresentativeEdge}s and the output contains
- * {@link RepresentativeEdge}s as well but augmented, each binned under the
- * order set of vertex membership.
+ * of {@link org.apache.mahout.graph.model.UndirectedEdge}s that point to or from this very vertex.
  */
 public class AugmentGraphWithDegreesJob extends AbstractJob {
 
@@ -67,27 +61,63 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
     Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
 
     Path inputPath = getInputPath();
-    Path augmentedEdgesPath = new Path(tempDirPath, "augmented-edges-"
-        + System.currentTimeMillis());
+    Path augmentedEdgesPath = new Path(tempDirPath, "augmented-edges");
     Path outputPath = getOutputPath();
 
     // scatter the edges to each of the vertices and count degree
-    Job scatter = prepareJob(inputPath, augmentedEdgesPath,
-        SequenceFileInputFormat.class, ScatterEdges.class, Membership.class,
-        GenericGraphElement.class, SumDegrees.class, Membership.class,
-        GenericGraphElement.class, SequenceFileOutputFormat.class);
-
+    Job scatter = prepareJob(inputPath, augmentedEdgesPath, SequenceFileInputFormat.class, ScatterEdgesMapper.class,
+        Vertex.class, Vertex.class, SumDegreesReducer.class, UndirectedEdge.class, VertexWithDegree.class,
+        SequenceFileOutputFormat.class);
     scatter.waitForCompletion(true);
 
-    // join augmented edges with partial degree information to to complete
-    // records
-    Job join = prepareJob(augmentedEdgesPath, outputPath,
-        SequenceFileInputFormat.class, Mapper.class, Membership.class,
-        GenericGraphElement.class, JoinDegrees.class, Membership.class,
-        GenericGraphElement.class, SequenceFileOutputFormat.class);
-
+    // join augmented edges with partial degree information to to complete records
+    Job join = prepareJob(augmentedEdgesPath, outputPath, SequenceFileInputFormat.class, Mapper.class,
+        UndirectedEdge.class, VertexWithDegree.class, JoinDegreesReducer.class, UndirectedEdgeWithDegrees.class,
+        NullWritable.class, SequenceFileOutputFormat.class);
     join.waitForCompletion(true);
 
     return 0;
+  }
+
+  /** Sends every edge to each vertex  */
+  public static class ScatterEdgesMapper extends Mapper<UndirectedEdge,Object,Vertex,Vertex> {
+    @Override
+    protected void map(UndirectedEdge edge, Object value, Context ctx) throws IOException, InterruptedException {
+      ctx.write(edge.getFirstVertex(), edge.getSecondVertex());
+      ctx.write(edge.getSecondVertex(), edge.getFirstVertex());
+    }
+  }
+
+  /** Sums up the count of edges for each vertex and augments all edges with a degree information for the key vertex */
+  public static class SumDegreesReducer extends Reducer<Vertex, Vertex, UndirectedEdge, VertexWithDegree> {
+    @Override
+    protected void reduce(Vertex vertex, Iterable<Vertex> connectedVertices, Context ctx)
+        throws IOException, InterruptedException {
+      FastIDSet connectedVertexIds = new FastIDSet();
+      for (Vertex connectedVertex : connectedVertices) {
+        connectedVertexIds.add(connectedVertex.getId());
+      }
+
+      int degree = connectedVertexIds.size();
+      VertexWithDegree vertexWithDegree = new VertexWithDegree(vertex, degree);
+      LongPrimitiveIterator connectedVertexIdsIterator = connectedVertexIds.iterator();
+      while (connectedVertexIdsIterator.hasNext()) {
+        Vertex connectedVertex = new Vertex(connectedVertexIdsIterator.nextLong());
+        ctx.write(new UndirectedEdge(vertex, connectedVertex), vertexWithDegree);
+      }
+    }
+  }
+
+  /** Joins identical edges assuring degree augmentations for both nodes */
+  public static class JoinDegreesReducer
+      extends Reducer<UndirectedEdge,VertexWithDegree,UndirectedEdgeWithDegrees,NullWritable> {
+    @Override
+    protected void reduce(UndirectedEdge edge, Iterable<VertexWithDegree> verticesWithDegrees, Context ctx)
+        throws IOException, InterruptedException {
+      Iterator<VertexWithDegree> iterator = verticesWithDegrees.iterator();
+      VertexWithDegree firstVertexWithDegree = iterator.next().clone();
+      VertexWithDegree secondVertexWithDegree = iterator.next().clone();
+      ctx.write(new UndirectedEdgeWithDegrees(firstVertexWithDegree, secondVertexWithDegree), NullWritable.get());
+    }
   }
 }

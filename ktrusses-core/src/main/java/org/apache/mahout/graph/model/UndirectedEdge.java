@@ -17,33 +17,59 @@
 
 package org.apache.mahout.graph.model;
 
-import com.google.common.collect.Lists;
-import org.apache.hadoop.io.Writable;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 
-public class Triangle implements Writable {
+import com.google.common.collect.ComparisonChain;
+import org.apache.hadoop.io.WritableComparable;
+
+/** A representation of an undirected edge */
+public class UndirectedEdge implements WritableComparable<UndirectedEdge>, Cloneable {
 
   private Vertex first;
   private Vertex second;
-  private Vertex third;
 
-  public Triangle() {}
+  public UndirectedEdge() {}
 
-  public Triangle(Vertex first, Vertex second, Vertex third) {
-    List<Vertex> vertices = Lists.newArrayList(first, second, third);
-    Collections.sort(vertices);
-    this.first = vertices.get(0);
-    this.second = vertices.get(1);
-    this.third = vertices.get(2);
+  public UndirectedEdge(Vertex first, Vertex second) {
+    if (first.getId() < second.getId()) {
+      this.first = first;
+      this.second = second;
+    } else {
+      this.first = second;
+      this.second = first;
+    }
   }
 
-  public Triangle(long firstVertexId, long secondVertexId, long thirdVertexId) {
-    this(new Vertex(firstVertexId), new Vertex(secondVertexId), new Vertex(thirdVertexId));
+  public UndirectedEdge(long firstVertexID, long secondVertexID) {
+    this(new Vertex(firstVertexID), new Vertex(secondVertexID));
+  }
+
+  @Override
+  public void write(DataOutput out) throws IOException {
+    first.write(out);
+    second.write(out);
+  }
+
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    first = new Vertex();
+    first.readFields(in);
+    second = new Vertex();
+    second.readFields(in);
+  }
+
+  /** Returns true if the other instance is an edge containing the same vertices */
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof UndirectedEdge) {
+      UndirectedEdge other = (UndirectedEdge) o;
+      if (first.equals(other.first) && second.equals(other.second)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public Vertex getFirstVertex() {
@@ -54,44 +80,25 @@ public class Triangle implements Writable {
     return second;
   }
 
-  public Vertex getThirdVertex() {
-    return third;
-  }
-
-  @Override
-  public void write(DataOutput out) throws IOException {
-    first.write(out);
-    second.write(out);
-    third.write(out);
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    first = new Vertex();
-    first.readFields(in);
-    second = new Vertex();
-    second.readFields(in);
-    third = new Vertex();
-    third.readFields(in);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (o instanceof Triangle) {
-      Triangle other = (Triangle) o;
-      return first.equals(other.first) && second.equals(other.second) && third.equals(other.third);
-    }
-    return false;
-  }
-
   @Override
   public int hashCode() {
-    int result = 31 * first.hashCode() + second.hashCode();
-    return 31 * result + third.hashCode();
+    return first.hashCode() + 31 * second.hashCode();
   }
 
   @Override
   public String toString() {
-    return "(" + first.getId() + "," + second.getId() + "," + third.getId() + ")";
+    return "(" + first.getId() + "," + second.getId() + ")";
+  }
+
+  @Override
+  public int compareTo(UndirectedEdge other) {
+    return ComparisonChain.start()
+        .compare(first, other.first)
+        .compare(second, other.second).result();
+  }
+
+  @Override
+  public UndirectedEdge clone() {
+    return new UndirectedEdge(first.clone(), second.clone());
   }
 }

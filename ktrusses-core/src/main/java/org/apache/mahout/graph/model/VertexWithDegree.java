@@ -21,113 +21,66 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.Writable;
+import org.apache.mahout.math.Varint;
 
-/**
- * Container for a vertex augmented with a degree. The degree is interpreted as
- * the count of edges that start or end at the vertex.
- * 
- */
-public class VertexWithDegree implements WritableComparable<VertexWithDegree> {
+public class VertexWithDegree implements Writable, Cloneable {
 
-  /**
-   * the degree of this instance
-   */
-  private long d;
-  /**
-   * the vertex of this instance
-   */
-  private Vertex v;
+  private Vertex vertex;
+  private int degree;
 
-  /**
-   * Constructs an empty instance
-   */
-  public VertexWithDegree() {
+  public VertexWithDegree() {}
+
+  public VertexWithDegree(Vertex vertex, int degree) {
+    this.vertex = vertex;
+    this.degree = degree;
   }
 
-  /**
-   * Create an instance of an augmented vertex.
-   * 
-   * @param v
-   *          The vertex to be augmented
-   * @param d
-   *          The degree to be the augmentation
-   */
-  public VertexWithDegree(Vertex v, long d) {
-    this.d = d;
-    this.v = v;
+  public VertexWithDegree(long vertexId, int degree) {
+    this(new Vertex(vertexId), degree);
   }
 
-  /**
-   * Compares the degree of this instance to the other and returns a negative
-   * number if this instance's degree is lower, 0 if the degrees and vertices
-   * equal and a positive number if this instance's degree is bigger than the
-   * other's.
-   * 
-   * <p>
-   * If degrees equal but vertices do not the returned value is the same as
-   * {@link Vertex #compareTo(Vertex)}. This behavior is equivalent to
-   * {@link org.apache.mahout.graph.common.TotalVertexOrder}.
-   */
-  @Override
-  public int compareTo(VertexWithDegree o) {
-    int c = new Long(d).compareTo(new Long(o.d));
-    if (c == 0)
-      return v.compareTo(o.v);
-    return c;
-  }
-
-  /**
-   * This method returns true if the other instance is either a
-   * {@link VertexWithDegree } with degree equal to this instance and vertex
-   * equal to this instance's vertex or other instance is a {@link Vertex} and
-   * equals this instance's vertex.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (o instanceof VertexWithDegree) {
-      int c = compareTo((VertexWithDegree) o);
-      return c == 0 && v.equals(((VertexWithDegree) o).v);
-    } else if (o instanceof Vertex) {
-      return ((Vertex) o).equals(this);
-    } else {
-      return false;
-    }
-  }
-
-  /**
-   * Getter for the <code>v</code> attribute.
-   * 
-   * @return This instance's vertex
-   */
   public Vertex getVertex() {
-    return v;
+    return vertex;
   }
 
-  /**
-   * Getter for the <code>d</code> attribute
-   * 
-   * @return The degree of this instance
-   */
-  public long getDegree() {
-    return d;
-  }
-
-  @Override
-  public String toString() {
-    return String.format("%s (%d)", v, d);
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    v = new Vertex();
-    v.readFields(in);
-    d = in.readLong();
+  public int getDegree() {
+    return degree;
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
-    v.write(out);
-    out.writeLong(d);
+    vertex.write(out);
+    Varint.writeUnsignedVarInt(degree, out);
+  }
+
+  @Override
+  public void readFields(DataInput in) throws IOException {
+    vertex = new Vertex();
+    vertex.readFields(in);
+    degree = Varint.readUnsignedVarInt(in);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof VertexWithDegree) {
+      return vertex.equals(((VertexWithDegree) o).vertex);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return vertex.hashCode();
+  }
+
+  @Override
+  public VertexWithDegree clone() {
+    return new VertexWithDegree(vertex.clone(), degree);
+  }
+
+  @Override
+  public String toString() {
+    return "(" + vertex + "," + degree + ")";
   }
 }

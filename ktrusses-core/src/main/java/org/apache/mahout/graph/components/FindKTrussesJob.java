@@ -17,30 +17,30 @@
 
 package org.apache.mahout.graph.components;
 
+import java.io.IOException;
 import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.reduce.IntSumReducer;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.JoinDegrees;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.ScatterEdges;
-import org.apache.mahout.graph.common.AugmentGraphWithDegrees.SumDegrees;
-import org.apache.mahout.graph.common.EnumerateTriangles.BuildOpenTriads;
-import org.apache.mahout.graph.common.EnumerateTriangles.BuildTriangles;
-import org.apache.mahout.graph.common.EnumerateTriangles.ScatterEdgesToLowerDegreeVertex;
-import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphMapper;
-import org.apache.mahout.graph.common.SimplifyGraph.SimplifyGraphReducer;
-import org.apache.mahout.graph.components.FindKTrusses.DropUnsupportedEdges;
-import org.apache.mahout.graph.components.FindKTrusses.SplitTrianglesToEdges;
-import org.apache.mahout.graph.model.GenericGraphElement;
-import org.apache.mahout.graph.model.Membership;
-import org.apache.mahout.graph.model.Parser;
+import org.apache.mahout.graph.common.AugmentGraphWithDegreesJob;
+import org.apache.mahout.graph.common.SimplifyGraphJob;
+import org.apache.mahout.graph.model.Triangle;
+import org.apache.mahout.graph.model.UndirectedEdge;
+import org.apache.mahout.graph.model.Vertex;
+import org.apache.mahout.graph.triangles.EnumerateTrianglesJob;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Find <code>k</code>-trusses in a graph. This algorithm works as follows:
@@ -64,8 +64,7 @@ import org.apache.mahout.graph.model.Parser;
  * {@link FindComponentsJob}.
  * 
  * <p>
- * The input file format is a {@link TextInputFormat} which can be parsed via an
- * implementation of {@link Parser}.
+ * The input file format is a {@link TextInputFormat} <code>Long,Long</code> representing an Edge.
  * 
  * <p>
  * This job accepts the following input arguments:
@@ -83,8 +82,8 @@ import org.apache.mahout.graph.model.Parser;
  * </dl>
  * 
  * The output is a {@link SequenceFile} containing a {@link Membership} as key
- * and a {@link org.apache.mahout.graph.model.ZoneAssignment} as value (contained in a
- * {@link GenericGraphElement}).
+ * and a {@link org.apache.mahout.graph.model.ZoneAssignment} as value
+ * (contained in a {@link GenericGraphElement}).
  */
 public class FindKTrussesJob extends AbstractJob {
 
@@ -96,10 +95,6 @@ public class FindKTrussesJob extends AbstractJob {
   public int run(String[] args) throws Exception {
     addInputOption();
     addOutputOption();
-    addOption(
-        Parser.class.getCanonicalName(),
-        Parser.class.getCanonicalName(),
-        "A class implementing the Parser interface that should be used to parse the graph file.");
 
     addOption("k", "k", "The k parameter of the k-trusses to find.");
 
@@ -110,28 +105,23 @@ public class FindKTrussesJob extends AbstractJob {
 
     Path inputPath = getInputPath();
     Path outputPath = getOutputPath();
-
     Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
+
     int k = Integer.parseInt(parsedArgs.get("--k")); // extract parameter
 
     /*
      * Simplify the graph first
      */
     Path simplifyInputPath = inputPath;
-    Path simplifyOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-    Job simplify = prepareJob(simplifyInputPath, simplifyOutputPath,
-        TextInputFormat.class, SimplifyGraphMapper.class, Membership.class,
-        GenericGraphElement.class, SimplifyGraphReducer.class,
-        Membership.class, GenericGraphElement.class,
-        SequenceFileOutputFormat.class);
-    String parserImplementationClass = parsedArgs.get("--"
-        + Parser.class.getCanonicalName()); // extract parameter
-    if (parserImplementationClass != null) { // pass parser parameter to the job
-                                             // if set
-      simplify.getConfiguration().set(Parser.class.getCanonicalName(),
-          parserImplementationClass);
-    }
-    simplify.waitForCompletion(true);
+    Path simplifyOutputPath = new Path(tempDirPath, String.valueOf(System
+        .currentTimeMillis()));
+
+    Configuration conf = new Configuration();
+    SimplifyGraphJob simplifyGraphJob = new SimplifyGraphJob();
+    simplifyGraphJob.setConf(conf);
+    simplifyGraphJob.run(new String[] { "--input", simplifyInputPath.toString(),
+        "--output", simplifyOutputPath.toString(), "--tempDir",
+        tempDirPath.toString() });
 
     boolean isDroppedSupportedEdges = true;
     Path currentTrussesDirPath = simplifyOutputPath;
@@ -142,55 +132,45 @@ public class FindKTrussesJob extends AbstractJob {
        */
       // scatter the edges to each of the vertices and count degree
       Path augmentInputPath = currentTrussesDirPath;
-      Path augmentTempDirPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-      Job scatter = prepareJob(augmentInputPath, augmentTempDirPath,
-          SequenceFileInputFormat.class, ScatterEdges.class, Membership.class,
-          GenericGraphElement.class, SumDegrees.class, Membership.class,
-          GenericGraphElement.class, SequenceFileOutputFormat.class);
-      scatter.waitForCompletion(true);
-      // join augmented edges with partial degree information to to complete
-      // records
-      Path augmentOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-      Job join = prepareJob(augmentTempDirPath, augmentOutputPath,
-          SequenceFileInputFormat.class, Mapper.class, Membership.class,
-          GenericGraphElement.class, JoinDegrees.class, Membership.class,
-          GenericGraphElement.class, SequenceFileOutputFormat.class);
-      join.waitForCompletion(true);
+      Path augmentOutputPath = new Path(tempDirPath, String.valueOf(System
+          .currentTimeMillis()));
+
+      AugmentGraphWithDegreesJob augmentGraphWithDegreesJob = new AugmentGraphWithDegreesJob();
+      augmentGraphWithDegreesJob.setConf(conf);
+      augmentGraphWithDegreesJob.run(new String[] { "--input", augmentInputPath.toString(),
+          "--output", augmentOutputPath.toString(), "--tempDir", tempDirPath.toString(), });
+
 
       /*
        * Enumerate triangles in the graph
        */
       Path enumerateInputPath = augmentOutputPath;
       // scatter the edges to lower degree vertex and build open triads
-      Path enumerateTempDirPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-      Job scatterToLowerDegreeVertex = prepareJob(enumerateInputPath,
-          enumerateTempDirPath, SequenceFileInputFormat.class,
-          ScatterEdgesToLowerDegreeVertex.class, Membership.class,
-          GenericGraphElement.class, BuildOpenTriads.class, Membership.class,
-          GenericGraphElement.class, SequenceFileOutputFormat.class);
-      scatterToLowerDegreeVertex.waitForCompletion(true);
-      // join triads and edges pairwise to get all triangles
-      Path enumerateOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-      Job joinTriadsAndEdges = prepareJob(new Path(enumerateTempDirPath + ","
-          + enumerateInputPath), enumerateOutputPath,
-          SequenceFileInputFormat.class, Mapper.class, Membership.class,
-          GenericGraphElement.class, BuildTriangles.class, Membership.class,
-          GenericGraphElement.class, SequenceFileOutputFormat.class);
-      joinTriadsAndEdges.waitForCompletion(true);
+      Path enumerateOutputPath = new Path(tempDirPath, String.valueOf(System
+          .currentTimeMillis()));
+
+      EnumerateTrianglesJob enumerateTrianglesJob = new EnumerateTrianglesJob();
+      enumerateTrianglesJob.setConf(conf);
+      enumerateTrianglesJob.run(new String[] { "--input", enumerateInputPath.toString(),
+          "--output", enumerateOutputPath.toString(), "--tempDir", tempDirPath.toString(), });
 
       /*
        * Drop edges with insufficient support
        */
       Path checkSupportInputPath = enumerateOutputPath;
-//      Path checkSupportOutputPath = new Path(tempDirPath, String.valueOf(System.currentTimeMillis()));
-      Path checkSupportOutputPath = outputPath; // FIXME remove this when job is complete
+      // Path checkSupportOutputPath = new Path(tempDirPath,
+      // String.valueOf(System.currentTimeMillis()));
+      Path checkSupportOutputPath = outputPath; // FIXME remove this when job is
+                                                // complete
       Job checkTrianglesForSupport = prepareJob(checkSupportInputPath,
           checkSupportOutputPath, SequenceFileInputFormat.class,
-          SplitTrianglesToEdges.class, Membership.class,
-          GenericGraphElement.class, DropUnsupportedEdges.class,
-          Membership.class, GenericGraphElement.class,
+          SplitTrianglesToEdgesMapper.class, UndirectedEdge.class,
+          IntWritable.class, DropUnsupportedEdgesReducer.class,
+          Vertex.class, VertexAndZone.class,
           SequenceFileOutputFormat.class);
-      checkTrianglesForSupport.getConfiguration().setInt(FindKTrusses.K, k);
+      
+      checkTrianglesForSupport.setCombinerClass(IntSumReducer.class);
+      checkTrianglesForSupport.getConfiguration().setInt(K, k);
       checkTrianglesForSupport.waitForCompletion(true);
 
       // FIXME check for dropped edges and if no more dropped break
@@ -204,10 +184,81 @@ public class FindKTrussesJob extends AbstractJob {
     /*
      * Find the components of the remaining graph
      */
-    Path componentsInputPath = currentTrussesDirPath;
+//    Path componentsInputPath = currentTrussesDirPath;
     // FIXME implement find components
 
     return 0;
 
+  }
+
+  private static final IntWritable ONE = new IntWritable(1);
+
+  /**
+   * Constant to access the configuration for parameter <code>k</code>.
+   */
+  public final static String K = "K";
+
+  private static Logger log = LoggerFactory.getLogger(FindKTrussesJob.class);
+
+  /**
+   * Reading a triangle file, emit a record for each edge involved in each
+   * triangle.
+   */
+  public static class SplitTrianglesToEdgesMapper extends
+      Mapper<Triangle, Object, UndirectedEdge, IntWritable> {
+
+    @Override
+    public void map(Triangle triangle, Object obj, Context ctx)
+        throws IOException, InterruptedException {
+      ctx.write(
+          new UndirectedEdge(triangle.getFirstVertex(), triangle
+              .getSecondVertex()), ONE);
+      ctx.write(
+          new UndirectedEdge(triangle.getFirstVertex(), triangle
+              .getThirdVertex()), ONE);
+      ctx.write(
+          new UndirectedEdge(triangle.getSecondVertex(), triangle
+              .getThirdVertex()), ONE);
+    }
+  }
+
+  /**
+   * Keeps only the edges with sufficient support.
+   */
+  public static class DropUnsupportedEdgesReducer extends
+      Reducer<UndirectedEdge, IntWritable, Vertex, VertexAndZone> {
+
+    /**
+     * The parameter <code>k</code> of the algorithm.
+     */
+    private int k;
+
+    @Override
+    public void setup(Context ctx) {
+      k = ctx.getConfiguration().getInt(K, 3); // TODO make this default value configurable
+    }
+
+    @Override
+    public void reduce(UndirectedEdge edge, Iterable<IntWritable> counts,
+        Context ctx) throws IOException, InterruptedException {
+      int issupported = 0;
+      for (IntWritable count : counts) {
+        issupported += count.get();
+        if (++issupported >= k - 2) {
+          break;// lazy evaluation
+        }
+      }
+      if (issupported >= k - 2) {
+
+        log.trace(String
+            .format("Writing edge %s with sufficent support.", edge));
+        ctx.write(edge.getFirstVertex(), new VertexAndZone(edge.getSecondVertex(), null));
+      } else {
+        log.trace(String.format("Dropping edge %s without sufficent support.",
+            edge));
+        // FIXME notify system that edges were dropped
+      }
+
+    }
   }
 }
