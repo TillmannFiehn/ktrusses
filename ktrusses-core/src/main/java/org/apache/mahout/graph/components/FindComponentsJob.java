@@ -71,7 +71,7 @@ public class FindComponentsJob extends AbstractJob {
     Configuration conf = new Configuration();
 
     Path prepareInputInputPath = inputPath;
-    Path prepareInputOutputPath = new Path(tempDirPath, String.valueOf(System
+    Path prepareAssignmentsFileOutputPath = new Path(tempDirPath, String.valueOf(System
         .currentTimeMillis()));
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
@@ -79,15 +79,15 @@ public class FindComponentsJob extends AbstractJob {
        * Prepare Input
        */
       Job prepareInput = prepareJob(prepareInputInputPath,
-          prepareInputOutputPath, SequenceFileInputFormat.class,
-          PrepareInputMapper.class, Vertex.class, Vertex.class,
-          PrepareInputReducer.class, JoinableVertex.class,
-          VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+          prepareAssignmentsFileOutputPath, SequenceFileInputFormat.class,
+          PrepareAssignmentsFileMapper.class, Vertex.class, Vertex.class,
+          PrepareAssignmentsFileReducer.class, Vertex.class,
+          FlaggedVertex.class, SequenceFileOutputFormat.class);
 
       prepareInput.waitForCompletion(true);
     }
 
-    Path currentComponentsDirPath = prepareInputOutputPath;
+    Path currentComponentsDirPath = prepareAssignmentsFileOutputPath;
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
 
@@ -105,9 +105,9 @@ public class FindComponentsJob extends AbstractJob {
          */
         Job scatterEdgesAndAssignZone = prepareJob(currentComponentsDirPath,
             scatterEdgesAndAssignZoneOutputPath, SequenceFileInputFormat.class,
-            ScatterEdgesAndForwardZoneAssignmentsMapper.class, Vertex.class, VertexOrRepresentative.class,
+            ScatterEdgesAndForwardZoneAssignmentsMapper.class, Vertex.class, FlaggedVertex.class,
             AssignOneZoneToEdgesReducer.class, UndirectedEdge.class,
-            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+            Vertex.class, SequenceFileOutputFormat.class);
 
         scatterEdgesAndAssignZone.waitForCompletion(true);
 
@@ -120,9 +120,9 @@ public class FindComponentsJob extends AbstractJob {
          */
         Job findInterzoneEdges = prepareJob(currentComponentsDirPath,
             findInterzoneEdgesOutputPath, SequenceFileInputFormat.class,
-            Mapper.class, UndirectedEdge.class, VertexOrRepresentative.class,
+            Mapper.class, UndirectedEdge.class, Vertex.class,
             FindInterzoneEdgesReducer.class, Vertex.class,
-            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+            FlaggedVertex.class, SequenceFileOutputFormat.class);
 
         findInterzoneEdges.waitForCompletion(true);
         
@@ -144,9 +144,9 @@ public class FindComponentsJob extends AbstractJob {
          // FIXME: update classes
         Job assignNewZones = prepareJob(currentComponentsDirPath,
             assignNewZonesOutputPath, SequenceFileInputFormat.class,
-            BinZoneAssignmentsAndInterzonesMapper.class, JoinableVertex.class,
-            VertexOrRepresentative.class, Reducer.class, JoinableVertex.class,
-            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+            BinZoneAssignmentsAndInterzoneEdgesMapper.class, Vertex.class,
+            FlaggedVertex.class, AssignNewZonesToVerticesReducer.class, Vertex.class,
+            FlaggedVertex.class, SequenceFileOutputFormat.class);
 
         assignNewZones.waitForCompletion(true);
 
@@ -228,14 +228,14 @@ public class FindComponentsJob extends AbstractJob {
    * {@link Zone} as value, binned under the membership set of the edge.
    */
   public static class AssignOneZoneToEdgesReducer extends
-      Reducer<JoinableVertex, FlaggedVertex, UndirectedEdge, FlaggedVertex> {
+      Reducer<JoinableVertex, FlaggedVertex, UndirectedEdge, Vertex> {
     @Override
     public void reduce(JoinableVertex first,
         Iterable<FlaggedVertex> verticesAndZone, Context ctx)
         throws IOException, InterruptedException {
       // FIXME implement the lineage flag to avoid memory consumption
       Iterator<FlaggedVertex> iterator = verticesAndZone.iterator();
-      FlaggedVertex assignment = iterator.next();
+      Vertex assignment = iterator.next().getVertex();
       while (iterator.hasNext()) {
         Vertex second = iterator.next().getVertex();
         ctx.write(new UndirectedEdge(first.getVertex(), second), assignment);
@@ -250,14 +250,14 @@ public class FindComponentsJob extends AbstractJob {
    * other zone and value minimum zone that is to be assigned.
    */
   public static class FindInterzoneEdgesReducer extends
-      Reducer<UndirectedEdge, FlaggedVertex, Vertex, FlaggedVertex> {
+      Reducer<UndirectedEdge, Vertex, Vertex, FlaggedVertex> {
     @Override
     public void reduce(UndirectedEdge edge,
-        Iterable<FlaggedVertex> assignments, Context ctx) throws IOException,
+        Iterable<Vertex> assignments, Context ctx) throws IOException,
         InterruptedException {
       Set<Long> ids = new TreeSet<Long>();
-      for (FlaggedVertex ass : assignments) {
-        ids.add(ass.getVertex().getId());
+      for (Vertex ass : assignments) {
+        ids.add(ass.getId());
       }
       Iterator<Long> i = ids.iterator();
       long minZone = i.next();
