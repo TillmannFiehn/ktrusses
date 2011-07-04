@@ -67,47 +67,30 @@ public class FindComponentsJob extends AbstractJob {
     return 0;
   }
 
-  public static class PrepareInputMapper extends
-      Mapper<Vertex, Vertex, JoinableVertex, VertexOrRepresentative> {
+  public static class PrepareAssignmentsFileMapper extends
+      Mapper<Vertex, Vertex, Vertex, Vertex> {
 
     @Override
     public void map(Vertex from, Vertex to, Context ctx) throws IOException,
         InterruptedException {
-      // output the edge
-      ctx.write(new JoinableVertex(from, false), new VertexOrRepresentative(to,
-          null));
       // assign zone representatives to each node
-      ctx.write(new JoinableVertex(from, true), new VertexOrRepresentative(
-          null, from));
-      ctx.write(new JoinableVertex(to, true), new VertexOrRepresentative(null,
-          from));
+      ctx.write(from, from);
+      ctx.write(to, from);
     }
   }
 
-  public static class PrepareInputReducer
-      extends
-      Reducer<JoinableVertex, VertexOrRepresentative, JoinableVertex, VertexOrRepresentative> {
+  public static class PrepareAssignmentsFileReducer extends
+      Reducer<Vertex, Vertex, Vertex, FlaggedVertex> {
 
     @Override
-    public void reduce(JoinableVertex from,
-        Iterable<VertexOrRepresentative> verticesOrRepresentatives, Context ctx)
-        throws IOException, InterruptedException {
+    public void reduce(Vertex from, Iterable<Vertex> representatives,
+        Context ctx) throws IOException, InterruptedException {
       TreeSet<Long> ids = new TreeSet<Long>();
-      for (VertexOrRepresentative vertexOrRepresentative : verticesOrRepresentatives) {
-        if (vertexOrRepresentative.getRepresentative() == null) {
-          // output the edge
-          ctx.write(new JoinableVertex(from.getVertex(), false),
-              new VertexOrRepresentative(vertexOrRepresentative.getVertex()
-                  .clone(), null));
-        } else {
-          // output just one representative
-          ids.add(vertexOrRepresentative.getRepresentative().getId());
-        }
+      for (Vertex representative : representatives) {
+        // output just one representative
+        ids.add(representative.getId());
       }
-
-      ctx.write(new JoinableVertex(from.getVertex(), true),
-          new VertexOrRepresentative(null, new Vertex(ids.iterator().next())));
-
+      ctx.write(from, FlaggedVertex.createZoneAssignment(ids.iterator().next()));
     }
   }
 
@@ -123,20 +106,27 @@ public class FindComponentsJob extends AbstractJob {
    * Forward the edges to each of the vertices.
    */
   public static class ScatterEdgesAndForwardZoneAssignmentsMapper extends
-      Mapper<Vertex, VertexOrRepresentative, JoinableVertex, VertexOrRepresentative> {
+      Mapper<Vertex, FlaggedVertex, JoinableVertex, FlaggedVertex> {
 
     @Override
-    public void map(Vertex first,
-        VertexOrRepresentative secondOrRepresentative, Context ctx)
-        throws IOException, InterruptedException {
-      if (secondOrRepresentative.getRepresentative() == null) {
+    public void map(Vertex first, FlaggedVertex secondOrRepresentative,
+        Context ctx) throws IOException, InterruptedException {
+      switch (secondOrRepresentative.getType()) {
+      case UndirectedEdge:
         Vertex second = secondOrRepresentative.getVertex();
         // write the edge to each vertex
-        ctx.write(new JoinableVertex(first, false), new VertexOrRepresentative(second, null));
-        ctx.write(new JoinableVertex(second, false), new VertexOrRepresentative(first, null));
-      } else {
-        // forward the zone
+        ctx.write(new JoinableVertex(first, false),
+            FlaggedVertex.createUndirectedEdge(second));
+        ctx.write(new JoinableVertex(second, false),
+            FlaggedVertex.createUndirectedEdge(first));
+        break;
+      case ZoneAssignment:
+        // forward the assignment
         ctx.write(new JoinableVertex(first, true), secondOrRepresentative);
+        break;
+      default:
+        throw new IllegalArgumentException();
+
       }
     }
   }
@@ -148,19 +138,17 @@ public class FindComponentsJob extends AbstractJob {
    * This class joins {@link Zone} to all the edges of the input, outputting the
    * {@link Zone} as value, binned under the membership set of the edge.
    */
-  public static class AssignOneZoneToEdgesReducer
-      extends
-      Reducer<JoinableVertex, VertexOrRepresentative, UndirectedEdge, VertexOrRepresentative> {
+  public static class AssignOneZoneToEdgesReducer extends
+      Reducer<JoinableVertex, FlaggedVertex, UndirectedEdge, FlaggedVertex> {
     @Override
     public void reduce(JoinableVertex first,
-        Iterable<VertexOrRepresentative> verticesAndZone, Context ctx)
+        Iterable<FlaggedVertex> verticesAndZone, Context ctx)
         throws IOException, InterruptedException {
       // FIXME implement the lineage flag to avoid memory consumption
-      Iterator<VertexOrRepresentative> iterator = verticesAndZone.iterator();
-      VertexOrRepresentative assignment = iterator.next();
+      Iterator<FlaggedVertex> iterator = verticesAndZone.iterator();
+      FlaggedVertex assignment = iterator.next();
       while (iterator.hasNext()) {
-        VertexOrRepresentative secondVertex = iterator.next();
-        Vertex second = secondVertex.getVertex();
+        Vertex second = iterator.next().getVertex();
         ctx.write(new UndirectedEdge(first.getVertex(), second), assignment);
       }
     }
@@ -172,51 +160,68 @@ public class FindComponentsJob extends AbstractJob {
    * For each other zone, output an interzone edge, which is a record with key
    * other zone and value minimum zone that is to be assigned.
    */
-  public static class FindInterzoneEdgesReducer
-      extends
-      Reducer<UndirectedEdge, VertexOrRepresentative, JoinableVertex, VertexOrRepresentative> {
+  public static class FindInterzoneEdgesReducer extends
+      Reducer<UndirectedEdge, FlaggedVertex, Vertex, FlaggedVertex> {
     @Override
     public void reduce(UndirectedEdge edge,
-        Iterable<VertexOrRepresentative> assignments, Context ctx)
-        throws IOException, InterruptedException {
+        Iterable<FlaggedVertex> assignments, Context ctx) throws IOException,
+        InterruptedException {
       Set<Long> ids = new TreeSet<Long>();
-      for (VertexOrRepresentative ass : assignments) {
-        ids.add(ass.getRepresentative().getId());
+      for (FlaggedVertex ass : assignments) {
+        ids.add(ass.getVertex().getId());
       }
       Iterator<Long> i = ids.iterator();
-      Vertex minZone = new Vertex(i.next());
+      long minZone = i.next();
       for (Long other : ids) {
-        ctx.write(new JoinableVertex(other, true), new VertexOrRepresentative(
-            null, minZone));
+        ctx.write(new Vertex(other), FlaggedVertex.createInterzoneEdge(minZone));
       }
     }
   }
 
-  public static class BinZoneAssignmentsAndInterzones
-      extends
-      Mapper<JoinableVertex, VertexOrRepresentative, JoinableVertex, VertexOrRepresentative> {
+  public static class BinZoneAssignmentsAndInterzoneEdgesMapper extends
+      Mapper<Vertex, FlaggedVertex, JoinableVertex, FlaggedVertex> {
 
     @Override
-    public void map(JoinableVertex vertex,
-        VertexOrRepresentative vertexOrRepresentative, Context ctx)
-        throws IOException, InterruptedException {
-      
-      if(vertex.isMarked()) {
+    public void map(Vertex vertex, FlaggedVertex vertexOrRepresentative,
+        Context ctx) throws IOException, InterruptedException {
+      switch (vertexOrRepresentative.getType()) {
+      case InterzoneEdge:
         // forward the interzone edge
-        ctx.write(vertex, vertexOrRepresentative);
-      } else {
-        if(vertexOrRepresentative.getRepresentative() == null) {
-          //edge -> forward
-          // TODO create extra edges file to avoid overhead
-          ctx.write(vertex, vertexOrRepresentative);
-        } else {
-          // assignment -> bin the vertex assigned under the zone
-          ctx.write(new JoinableVertex(vertexOrRepresentative.getRepresentative(), false), new VertexOrRepresentative(vertex.getVertex(), null));
+        ctx.write(new JoinableVertex(vertex, true), vertexOrRepresentative);
+        break;
+      case ZoneAssignment:
+        // assignment -> bin the vertex assigned under the zone
+        ctx.write(
+            new JoinableVertex(vertexOrRepresentative.getVertex(), false),
+            FlaggedVertex.createZoneEntry(vertex));
+        break;
+      }
+    }
+  }
+
+  public static class AssignNewZonesToVerticesReducer extends
+      Reducer<JoinableVertex, FlaggedVertex, Vertex, FlaggedVertex> {
+    @Override
+    public void reduce(JoinableVertex oldRepresentative,
+        Iterable<FlaggedVertex> betterRepresentativesAndVertices, Context ctx)
+        throws IOException, InterruptedException {
+      Set<Long> ids = new TreeSet<Long>();
+      for (FlaggedVertex vertexOrRepresentative : betterRepresentativesAndVertices) {
+        switch (vertexOrRepresentative.getType()) {
+        case InterzoneEdge:
+          // assignment -> put the improved representative to set
+          ids.add(vertexOrRepresentative.getVertex().getId());
+          break;
+        case ZoneEntry:
+          // entry -> assign the best of the better representatives
+          ctx.write(vertexOrRepresentative.getVertex(),
+              FlaggedVertex.createZoneAssignment(ids.iterator().next()));
+          break;
+        default:
+          throw new IllegalArgumentException();
         }
       }
-
     }
-
   }
 
 }

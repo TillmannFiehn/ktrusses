@@ -180,7 +180,7 @@ public class FindKTrussesJob extends AbstractJob {
             checkSupportOutputPath, SequenceFileInputFormat.class,
             SplitTrianglesToEdgesMapper.class, UndirectedEdge.class,
             IntWritable.class, DropUnsupportedEdgesReducer.class, Vertex.class,
-            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+            FlaggedVertex.class, SequenceFileOutputFormat.class);
 
         checkTrianglesForSupport.setCombinerClass(IntSumReducer.class);
         checkTrianglesForSupport.getConfiguration().setInt(K, k);
@@ -242,7 +242,7 @@ public class FindKTrussesJob extends AbstractJob {
    * Keeps only the edges with sufficient support.
    */
   public static class DropUnsupportedEdgesReducer extends
-      Reducer<UndirectedEdge, IntWritable, Vertex, VertexOrRepresentative> {
+      Reducer<UndirectedEdge, IntWritable, Vertex, FlaggedVertex> {
 
     /**
      * The parameter <code>k</code> of the algorithm.
@@ -270,7 +270,7 @@ public class FindKTrussesJob extends AbstractJob {
         log.trace(String
             .format("Writing edge %s with sufficent support.", edge));
         ctx.write(edge.getFirstVertex(),
-            new VertexOrRepresentative(edge.getSecondVertex(), null));
+            FlaggedVertex.createUndirectedEdge(edge.getSecondVertex()));
       } else {
         log.trace(String.format("Dropping edge %s without sufficent support.",
             edge));

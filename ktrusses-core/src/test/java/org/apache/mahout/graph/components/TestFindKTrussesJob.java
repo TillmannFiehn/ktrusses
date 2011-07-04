@@ -94,8 +94,8 @@ public class TestFindKTrussesJob extends MahoutTestCase {
         "--tempDir", tempDir.getAbsolutePath(), "--k", "4" });
 
     Set<UndirectedEdge> trusses = Sets.newHashSet();
-    for (Pair<Vertex,VertexOrRepresentative> result :
-        new SequenceFileIterable<Vertex, VertexOrRepresentative>(new Path(outputDir.getAbsolutePath() + "/part-r-00000"),
+    for (Pair<Vertex,FlaggedVertex> result :
+        new SequenceFileIterable<Vertex, FlaggedVertex>(new Path(outputDir.getAbsolutePath() + "/part-r-00000"),
         false, conf)) {
       trusses.add(new UndirectedEdge(result.getFirst(), result.getSecond().getVertex()));
     }
