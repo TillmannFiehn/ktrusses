@@ -22,10 +22,15 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.hadoop.conf.Configuration;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.model.UndirectedEdge;
@@ -37,6 +42,10 @@ import org.apache.mahout.graph.triangles.EnumerateTrianglesJob;
  * 
  */
 public class FindComponentsJob extends AbstractJob {
+
+  public enum Counter {
+    ZONES_CONNECTED
+  }
 
   public static void main(String[] args) throws Exception {
     ToolRunner.run(new EnumerateTrianglesJob(), args);
@@ -58,12 +67,92 @@ public class FindComponentsJob extends AbstractJob {
     Path inputPath = getInputPath();
     Path outputPath = getOutputPath();
 
-    // necessary as long as we don't have access to an undeprecated
-    // MultipleInputs
+    AtomicInteger currentPhase = new AtomicInteger();
+    Configuration conf = new Configuration();
 
-    // scatter the edges each vertices and forward zones
+    Path prepareInputInputPath = inputPath;
+    Path prepareInputOutputPath = new Path(tempDirPath, String.valueOf(System
+        .currentTimeMillis()));
 
-    //
+    if (shouldRunNextPhase(parsedArgs, currentPhase)) {
+      /*
+       * Prepare Input
+       */
+      Job prepareInput = prepareJob(prepareInputInputPath,
+          prepareInputOutputPath, SequenceFileInputFormat.class,
+          PrepareInputMapper.class, Vertex.class, Vertex.class,
+          PrepareInputReducer.class, JoinableVertex.class,
+          VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+
+      prepareInput.waitForCompletion(true);
+    }
+
+    Path currentComponentsDirPath = prepareInputOutputPath;
+
+    if (shouldRunNextPhase(parsedArgs, currentPhase)) {
+
+      /*
+       * As long as there may be zones connected
+       */
+      while(true) {
+
+        Path scatterEdgesAndAssignZoneOutputPath = new Path(tempDirPath, String.valueOf(System
+            .currentTimeMillis()));
+
+        /*
+         * Scatter edges and forward zone assignments,
+         * assign one zone to edges
+         */
+        Job scatterEdgesAndAssignZone = prepareJob(currentComponentsDirPath,
+            scatterEdgesAndAssignZoneOutputPath, SequenceFileInputFormat.class,
+            ScatterEdgesAndForwardZoneAssignmentsMapper.class, Vertex.class, VertexOrRepresentative.class,
+            AssignOneZoneToEdgesReducer.class, UndirectedEdge.class,
+            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+
+        scatterEdgesAndAssignZone.waitForCompletion(true);
+
+        currentComponentsDirPath = scatterEdgesAndAssignZoneOutputPath;
+        Path findInterzoneEdgesOutputPath = new Path(tempDirPath, String.valueOf(System
+            .currentTimeMillis()));
+
+        /*
+         * Find interzone edges
+         */
+        Job findInterzoneEdges = prepareJob(currentComponentsDirPath,
+            findInterzoneEdgesOutputPath, SequenceFileInputFormat.class,
+            Mapper.class, UndirectedEdge.class, VertexOrRepresentative.class,
+            FindInterzoneEdgesReducer.class, Vertex.class,
+            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+
+        findInterzoneEdges.waitForCompletion(true);
+        
+        /*
+         * Break if there are no new interzone edges
+         */
+        if (findInterzoneEdges.getCounters()
+            .findCounter(Counter.ZONES_CONNECTED).getValue() == 0L) {
+          break;
+        }
+
+        currentComponentsDirPath = findInterzoneEdgesOutputPath;
+        Path assignNewZonesOutputPath = new Path(tempDirPath, String.valueOf(System
+            .currentTimeMillis()));
+
+        /*
+         * Assign new zones
+         */
+         // FIXME: update classes
+        Job assignNewZones = prepareJob(currentComponentsDirPath,
+            assignNewZonesOutputPath, SequenceFileInputFormat.class,
+            BinZoneAssignmentsAndInterzonesMapper.class, JoinableVertex.class,
+            VertexOrRepresentative.class, Reducer.class, JoinableVertex.class,
+            VertexOrRepresentative.class, SequenceFileOutputFormat.class);
+
+        assignNewZones.waitForCompletion(true);
+
+        currentComponentsDirPath = assignNewZonesOutputPath;
+      }
+    }
     return 0;
   }
 
@@ -186,13 +275,14 @@ public class FindComponentsJob extends AbstractJob {
       Iterator<Long> i = ids.iterator();
       Vertex minZone = new Vertex(i.next());
       for (Long other : ids) {
+        ctx.getCounter(Counter.ZONES_CONNECTED).increment(1L);
         ctx.write(new JoinableVertex(other, true), new VertexOrRepresentative(
             null, minZone));
       }
     }
   }
 
-  public static class BinZoneAssignmentsAndInterzones
+  public static class BinZoneAssignmentsAndInterzonesMapper
       extends
       Mapper<JoinableVertex, VertexOrRepresentative, JoinableVertex, VertexOrRepresentative> {
 
