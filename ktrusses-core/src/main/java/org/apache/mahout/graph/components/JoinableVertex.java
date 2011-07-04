@@ -37,8 +37,8 @@ public class JoinableVertex implements WritableComparable<JoinableVertex> {
 
   public JoinableVertex() {}
 
-  public JoinableVertex(Vertex edge, boolean marked) {
-    this.vertex = edge;
+  public JoinableVertex(Vertex vertex, boolean marked) {
+    this.vertex = vertex;
     this.marked = marked;
   }
 
@@ -49,6 +49,10 @@ public class JoinableVertex implements WritableComparable<JoinableVertex> {
 
   public Vertex getVertex() {
     return vertex;
+  }
+  
+  public boolean isMarked() {
+    return marked;
   }
 
   @Override
