@@ -23,8 +23,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.hadoop.conf.Configuration;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -68,26 +69,23 @@ public class FindComponentsJob extends AbstractJob {
     Path outputPath = getOutputPath();
 
     AtomicInteger currentPhase = new AtomicInteger();
-    Configuration conf = new Configuration();
 
-    Path prepareInputInputPath = inputPath;
-    Path prepareAssignmentsFileOutputPath = new Path(tempDirPath, String.valueOf(System
+    Path edgesPath = inputPath;
+    Path zoneAssignmentsPath = new Path(tempDirPath, String.valueOf(System
         .currentTimeMillis()));
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
       /*
        * Prepare Input
        */
-      Job prepareInput = prepareJob(prepareInputInputPath,
-          prepareAssignmentsFileOutputPath, SequenceFileInputFormat.class,
+      Job prepareAssignments = prepareJob(edgesPath,
+          zoneAssignmentsPath, SequenceFileInputFormat.class,
           PrepareAssignmentsFileMapper.class, Vertex.class, Vertex.class,
           PrepareAssignmentsFileReducer.class, Vertex.class,
           FlaggedVertex.class, SequenceFileOutputFormat.class);
 
-      prepareInput.waitForCompletion(true);
+      prepareAssignments.waitForCompletion(true);
     }
-
-    Path currentComponentsDirPath = prepareAssignmentsFileOutputPath;
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
 
@@ -103,22 +101,21 @@ public class FindComponentsJob extends AbstractJob {
          * Scatter edges and forward zone assignments,
          * assign one zone to edges
          */
-        Job scatterEdgesAndAssignZone = prepareJob(currentComponentsDirPath,
+        Job scatterEdgesAndAssignZone = prepareJob(new Path(zoneAssignmentsPath.toString() + "," + edgesPath.toString()),  
             scatterEdgesAndAssignZoneOutputPath, SequenceFileInputFormat.class,
-            ScatterEdgesAndForwardZoneAssignmentsMapper.class, Vertex.class, FlaggedVertex.class,
+            ScatterEdgesAndForwardZoneAssignmentsMapper.class, JoinableVertex.class, FlaggedVertex.class,
             AssignOneZoneToEdgesReducer.class, UndirectedEdge.class,
             Vertex.class, SequenceFileOutputFormat.class);
-
+        scatterEdgesAndAssignZone.setGroupingComparatorClass(JoinableVertex.GroupingComparator.class);
         scatterEdgesAndAssignZone.waitForCompletion(true);
 
-        currentComponentsDirPath = scatterEdgesAndAssignZoneOutputPath;
         Path findInterzoneEdgesOutputPath = new Path(tempDirPath, String.valueOf(System
             .currentTimeMillis()));
 
         /*
          * Find interzone edges
          */
-        Job findInterzoneEdges = prepareJob(currentComponentsDirPath,
+        Job findInterzoneEdges = prepareJob(scatterEdgesAndAssignZoneOutputPath,
             findInterzoneEdgesOutputPath, SequenceFileInputFormat.class,
             Mapper.class, UndirectedEdge.class, Vertex.class,
             FindInterzoneEdgesReducer.class, Vertex.class,
@@ -134,37 +131,38 @@ public class FindComponentsJob extends AbstractJob {
           break;
         }
 
-        currentComponentsDirPath = findInterzoneEdgesOutputPath;
         Path assignNewZonesOutputPath = new Path(tempDirPath, String.valueOf(System
             .currentTimeMillis()));
 
         /*
          * Assign new zones
          */
-         // FIXME: update classes
-        Job assignNewZones = prepareJob(currentComponentsDirPath,
+        Job assignNewZones = prepareJob(new Path(zoneAssignmentsPath.toString() + "," + findInterzoneEdgesOutputPath.toString()),
             assignNewZonesOutputPath, SequenceFileInputFormat.class,
-            BinZoneAssignmentsAndInterzoneEdgesMapper.class, Vertex.class,
+            BinZoneAssignmentsAndInterzoneEdgesMapper.class, JoinableVertex.class,
             FlaggedVertex.class, AssignNewZonesToVerticesReducer.class, Vertex.class,
             FlaggedVertex.class, SequenceFileOutputFormat.class);
 
+        assignNewZones.setGroupingComparatorClass(JoinableVertex.GroupingComparator.class);
         assignNewZones.waitForCompletion(true);
 
-        currentComponentsDirPath = assignNewZonesOutputPath;
+        zoneAssignmentsPath = assignNewZonesOutputPath;
       }
     }
+    FileSystem system = FileSystem.get(getConf());
+    FileUtil.copy(system, zoneAssignmentsPath, system, outputPath, false, getConf());
     return 0;
   }
 
   public static class PrepareAssignmentsFileMapper extends
-      Mapper<Vertex, Vertex, Vertex, Vertex> {
+      Mapper<Vertex, FlaggedVertex, Vertex, Vertex> {
 
     @Override
-    public void map(Vertex from, Vertex to, Context ctx) throws IOException,
+    public void map(Vertex from, FlaggedVertex to, Context ctx) throws IOException,
         InterruptedException {
       // assign zone representatives to each node
       ctx.write(from, from);
-      ctx.write(to, from);
+      ctx.write(to.getVertex(), from);
     }
   }
 
@@ -233,7 +231,6 @@ public class FindComponentsJob extends AbstractJob {
     public void reduce(JoinableVertex first,
         Iterable<FlaggedVertex> verticesAndZone, Context ctx)
         throws IOException, InterruptedException {
-      // FIXME implement the lineage flag to avoid memory consumption
       Iterator<FlaggedVertex> iterator = verticesAndZone.iterator();
       Vertex assignment = iterator.next().getVertex();
       while (iterator.hasNext()) {
@@ -261,6 +258,7 @@ public class FindComponentsJob extends AbstractJob {
       }
       Iterator<Long> i = ids.iterator();
       long minZone = i.next();
+      ids.remove(minZone);
       for (Long other : ids) {
         ctx.getCounter(Counter.ZONES_CONNECTED).increment(1L);
         ctx.write(new Vertex(other), FlaggedVertex.createInterzoneEdge(minZone));
@@ -304,8 +302,15 @@ public class FindComponentsJob extends AbstractJob {
           break;
         case ZoneEntry:
           // entry -> assign the best of the better representatives
-          ctx.write(vertexOrRepresentative.getVertex(),
-              FlaggedVertex.createZoneAssignment(ids.iterator().next()));
+          if(ids.isEmpty()) {
+            // this component does not change
+            ctx.write(vertexOrRepresentative.getVertex(),
+                FlaggedVertex.createZoneAssignment(oldRepresentative.getVertex()));
+          } else {
+            // we have interzone edges for this component
+            ctx.write(vertexOrRepresentative.getVertex(),
+                FlaggedVertex.createZoneAssignment(ids.iterator().next()));
+          }
           break;
         default:
           throw new IllegalArgumentException();
