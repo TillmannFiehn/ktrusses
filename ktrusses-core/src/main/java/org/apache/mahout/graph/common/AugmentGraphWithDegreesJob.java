@@ -36,12 +36,16 @@ import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.UndirectedEdgeWithDegrees;
 import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Augments a graph with degree information for each vertex which is the number
  * of {@link org.apache.mahout.graph.model.UndirectedEdge}s that point to or from this very vertex.
  */
 public class AugmentGraphWithDegreesJob extends AbstractJob {
+  
+  private static final Logger log = LoggerFactory.getLogger(AugmentGraphWithDegreesJob.class);
 
   public static void main(String[] args) throws Exception {
     ToolRunner.run(new AugmentGraphWithDegreesJob(), args);
@@ -97,13 +101,14 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
       for (Vertex connectedVertex : connectedVertices) {
         connectedVertexIds.add(connectedVertex.getId());
       }
-
       int degree = connectedVertexIds.size();
+      log.trace("degree for vertex {} is {}", vertex, degree);
       VertexWithDegree vertexWithDegree = new VertexWithDegree(vertex, degree);
       LongPrimitiveIterator connectedVertexIdsIterator = connectedVertexIds.iterator();
       while (connectedVertexIdsIterator.hasNext()) {
         Vertex connectedVertex = new Vertex(connectedVertexIdsIterator.nextLong());
         ctx.write(new UndirectedEdge(vertex, connectedVertex), vertexWithDegree);
+        
       }
     }
   }

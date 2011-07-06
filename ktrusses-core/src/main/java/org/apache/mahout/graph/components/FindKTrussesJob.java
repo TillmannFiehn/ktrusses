@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -36,6 +37,7 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
 import org.apache.mahout.graph.common.AugmentGraphWithDegreesJob;
 import org.apache.mahout.graph.common.SimplifyGraphJob;
+import org.apache.mahout.graph.components.PrepareInputJob.PrepareInputMapper;
 import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.Vertex;
@@ -142,45 +144,51 @@ public class FindKTrussesJob extends AbstractJob {
          */
         // scatter the edges to each of the vertices and count degree
         Path augmentInputPath = currentTrussesDirPath;
-        Path augmentOutputPath = new Path(tempDirPath, String.valueOf(System
-            .currentTimeMillis()));
+        Path augmentOutputPath = new Path(tempDirPath, "augment"
+            + String.valueOf(System.currentTimeMillis()));
 
         AugmentGraphWithDegreesJob augmentGraphWithDegreesJob = new AugmentGraphWithDegreesJob();
         augmentGraphWithDegreesJob.setConf(conf);
-        augmentGraphWithDegreesJob
-            .run(new String[] { "--input", augmentInputPath.toString(),
-                "--output", augmentOutputPath.toString(), "--tempDir",
-                tempDirPath.toString(), });
+        augmentGraphWithDegreesJob.run(new String[] {
+            "--input",
+            augmentInputPath.toString(),
+            "--output",
+            augmentOutputPath.toString(),
+            "--tempDir",
+            new Path(tempDirPath, String.valueOf(System.currentTimeMillis()))
+                .toString(), });
 
         /*
          * Enumerate triangles in the graph
          */
         Path enumerateInputPath = augmentOutputPath;
         // scatter the edges to lower degree vertex and build open triads
-        Path enumerateOutputPath = new Path(tempDirPath, String.valueOf(System
-            .currentTimeMillis()));
+        Path enumerateOutputPath = new Path(tempDirPath, "enumerate"
+            + String.valueOf(System.currentTimeMillis()));
 
         EnumerateTrianglesJob enumerateTrianglesJob = new EnumerateTrianglesJob();
         enumerateTrianglesJob.setConf(conf);
-        enumerateTrianglesJob.run(new String[] { "--input",
-            enumerateInputPath.toString(), "--output",
-            enumerateOutputPath.toString(), "--tempDir",
-            tempDirPath.toString(), });
+        enumerateTrianglesJob.run(new String[] {
+            "--input",
+            enumerateInputPath.toString(),
+            "--output",
+            enumerateOutputPath.toString(),
+            "--tempDir",
+            new Path(tempDirPath, String.valueOf(System.currentTimeMillis()))
+                .toString(), });
 
         /*
          * Drop edges with insufficient support
          */
         Path checkSupportInputPath = enumerateOutputPath;
-        // Path checkSupportOutputPath = new Path(tempDirPath,
-        // String.valueOf(System.currentTimeMillis()));
-        Path checkSupportOutputPath = outputPath; // FIXME remove this when job
-                                                  // is
-                                                  // complete
+        Path checkSupportOutputPath = new Path(tempDirPath, "support"
+            + String.valueOf(System.currentTimeMillis()));
         Job checkTrianglesForSupport = prepareJob(checkSupportInputPath,
             checkSupportOutputPath, SequenceFileInputFormat.class,
             SplitTrianglesToEdgesMapper.class, UndirectedEdge.class,
-            IntWritable.class, DropUnsupportedEdgesReducer.class, Vertex.class,
-            FlaggedVertex.class, SequenceFileOutputFormat.class);
+            IntWritable.class, DropUnsupportedEdgesReducer.class,
+            UndirectedEdge.class, NullWritable.class,
+            SequenceFileOutputFormat.class);
 
         checkTrianglesForSupport.setCombinerClass(IntSumReducer.class);
         checkTrianglesForSupport.getConfiguration().setInt(K, k);
@@ -188,21 +196,38 @@ public class FindKTrussesJob extends AbstractJob {
 
         currentTrussesDirPath = checkSupportOutputPath;
 
-        if (checkTrianglesForSupport.getCounters()
-            .findCounter(Counter.DROPPED_EDGES).getValue() == 0L) {
+        long droppedEdges = checkTrianglesForSupport.getCounters()
+            .findCounter(Counter.DROPPED_EDGES).getValue();
+        log.info("{} edges were dropped", droppedEdges);
+        if (droppedEdges == 0L) {
           break;
         }
 
       }
     }
 
+    Path componentsInputPath = new Path(tempDirPath, "converted"
+        + String.valueOf(System.currentTimeMillis()));
+    if (shouldRunNextPhase(parsedArgs, currentPhase)) {
+      /*
+       * Prepare the input for FindComponents
+       */
+      Job convertFromat = prepareJob(currentTrussesDirPath, componentsInputPath,
+          SequenceFileInputFormat.class, PrepareInputMapper.class,
+          Vertex.class, FlaggedVertex.class, Reducer.class, Vertex.class,
+          FlaggedVertex.class, SequenceFileOutputFormat.class);
+      convertFromat.waitForCompletion(true);
+    }
+
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
       /*
        * Find the components of the remaining graph
        */
-      // Path componentsInputPath = currentTrussesDirPath;
-      // FIXME implement find components
-
+      FindComponentsJob componentsJob = new FindComponentsJob();
+      componentsJob.setConf(conf);
+      componentsJob.run(new String[] { "--input",
+          componentsInputPath.toString(), "--output", outputPath.toString(),
+          "--tempDir", tempDirPath.toString(), });
     }
     return 0;
   }
@@ -242,7 +267,7 @@ public class FindKTrussesJob extends AbstractJob {
    * Keeps only the edges with sufficient support.
    */
   public static class DropUnsupportedEdgesReducer extends
-      Reducer<UndirectedEdge, IntWritable, Vertex, FlaggedVertex> {
+      Reducer<UndirectedEdge, IntWritable, UndirectedEdge, NullWritable> {
 
     /**
      * The parameter <code>k</code> of the algorithm.
@@ -251,8 +276,7 @@ public class FindKTrussesJob extends AbstractJob {
 
     @Override
     public void setup(Context ctx) {
-      k = ctx.getConfiguration().getInt(K, 3); // TODO make this default value
-                                               // configurable
+      k = ctx.getConfiguration().getInt(K, 3);
     }
 
     @Override
@@ -261,23 +285,20 @@ public class FindKTrussesJob extends AbstractJob {
       int issupported = 0;
       for (IntWritable count : counts) {
         issupported += count.get();
-        if (++issupported >= k - 2) {
+        if (issupported >= k - 2) {
           break;// lazy evaluation
         }
       }
       if (issupported >= k - 2) {
 
-        log.trace(String
-            .format("Writing edge %s with sufficent support.", edge));
-        ctx.write(edge.getFirstVertex(),
-            FlaggedVertex.createUndirectedEdge(edge.getSecondVertex()));
+        log.trace("supported {} (k is {})", edge, k);
+        // ctx.write(edge.getFirstVertex(),
+        // FlaggedVertex.createUndirectedEdge(edge.getSecondVertex()));
+        ctx.write(edge, NullWritable.get());
       } else {
-        log.trace(String.format("Dropping edge %s without sufficent support.",
-            edge));
+        log.trace("dropping {} (k is {})", edge, k);
         ctx.getCounter(Counter.DROPPED_EDGES).increment(1L);
-
       }
-
     }
   }
 }

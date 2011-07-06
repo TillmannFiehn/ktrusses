@@ -18,6 +18,8 @@
 package org.apache.mahout.graph.components;
 
 import java.io.File;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -32,12 +34,22 @@ import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.Vertex;
 import org.easymock.EasyMock;
+import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class TestFindKTrussesJob extends MahoutTestCase {
 
+  @Before
+  public void init() {
+    Logger logger = LoggerFactory.getLogger(getClass());
+    logger.trace("Hello I am running.");
+  }
+  
   private static final IntWritable ONE = new IntWritable(1);
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -76,16 +88,17 @@ public class TestFindKTrussesJob extends MahoutTestCase {
         "0,0",
         "0,1",
         "0,2",
-        "0,3",
-        "0,4",
-        "0,5",
-        "0,6",
-        "0,7",
         "1,2",
+        "0,3",
         "1,3",
         "2,3",
+        "0,4",
+        "0,5",
         "4,5",
-        "4,7");
+        "0,7",
+        "4,7",
+        "0,6"
+    );
 
     Configuration conf = new Configuration();
     FindKTrussesJob trussesJob = new FindKTrussesJob();
@@ -93,17 +106,46 @@ public class TestFindKTrussesJob extends MahoutTestCase {
     trussesJob.run(new String[] { "--input", inputFile.getAbsolutePath(), "--output", outputDir.getAbsolutePath(),
         "--tempDir", tempDir.getAbsolutePath(), "--k", "4" });
 
-    Set<UndirectedEdge> trusses = Sets.newHashSet();
-    for (Pair<Vertex,FlaggedVertex> result :
-        new SequenceFileIterable<Vertex, FlaggedVertex>(new Path(outputDir.getAbsolutePath() + "/part-r-00000"),
-        false, conf)) {
-      trusses.add(new UndirectedEdge(result.getFirst(), result.getSecond().getVertex()));
+    Map<Vertex, Set<Vertex>> components = Maps.newHashMap();
+    for (Pair<Vertex, FlaggedVertex> result : new SequenceFileIterable<Vertex, FlaggedVertex>(
+        new Path(outputDir.getAbsolutePath() + "/part-r-00000"), false, conf)) {
+      Set<Vertex> component = components.get(result.getSecond().getVertex());
+      if (component == null) {
+        component = Sets.newTreeSet();
+        components.put(result.getSecond().getVertex(), component);
+      }
+      component.add(result.getFirst());
+
     }
 
-    assertEquals(11, trusses.size());
-    for(UndirectedEdge truss: trusses) {
-      System.out.println(truss);
-    }
+    assertEquals(1, components.size());
+    assertEquals(Sets.newTreeSet(new Iterable<Vertex>() {
+      Long[] comp = new Long[] { 0L, 1L, 2L, 3L, };
+
+      @Override
+      public Iterator<Vertex> iterator() {
+        return new Iterator<Vertex>() {
+          private int i = 0;
+
+          @Override
+          public boolean hasNext() {
+            return i < comp.length;
+          }
+
+          @Override
+          public Vertex next() {
+            return new Vertex(comp[i++]);
+          }
+
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+          }
+
+        };
+      }
+
+    }), components.get(new Vertex(0L)));
 
   }
 

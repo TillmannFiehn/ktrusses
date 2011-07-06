@@ -37,9 +37,13 @@ import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.UndirectedEdgeWithDegrees;
 import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.model.VertexWithDegree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Enumerates all triangles of an undirected graph. */
 public class EnumerateTrianglesJob extends AbstractJob {
+  
+  private static final Logger log = LoggerFactory.getLogger(EnumerateTrianglesJob.class);
 
   public static void main(String[] args) throws Exception {
     ToolRunner.run(new EnumerateTrianglesJob(), args);
@@ -111,17 +115,22 @@ public class EnumerateTrianglesJob extends AbstractJob {
     @Override
     protected void reduce(Vertex vertex, Iterable<Vertex> vertices, Context ctx)
         throws IOException, InterruptedException {
+      int howmany = 0;
       FastIDSet bufferedVertexIDs = new FastIDSet();
       for (Vertex firstVertexOfMissingEdge : vertices) {
         LongPrimitiveIterator bufferedVertexIdsIterator = bufferedVertexIDs.iterator();
         while (bufferedVertexIdsIterator.hasNext()) {
           Vertex secondVertexOfMissingEdge = new Vertex(bufferedVertexIdsIterator.nextLong());
           UndirectedEdge missingEdge = new UndirectedEdge(firstVertexOfMissingEdge, secondVertexOfMissingEdge);
-          System.out.println(new JoinableUndirectedEdge(missingEdge, false) + " " + new VertexOrMarker(vertex));
-          ctx.write(new JoinableUndirectedEdge(missingEdge, false), new VertexOrMarker(vertex));
+          JoinableUndirectedEdge key = new JoinableUndirectedEdge(missingEdge, false);
+          VertexOrMarker value = new VertexOrMarker(vertex);
+          log.trace("{} -> {}", key, value);
+          howmany++;
+          ctx.write(key, value);
         }
         bufferedVertexIDs.add(firstVertexOfMissingEdge.getId());
       }
+      log.debug("{} triads on vertex {}", howmany, vertex);
     }
   }
 
@@ -147,7 +156,9 @@ public class EnumerateTrianglesJob extends AbstractJob {
         UndirectedEdge edge = joinableEdge.getEdge();
         while (verticesAndMarkerIterator.hasNext()) {
           Vertex connectingVertex = verticesAndMarkerIterator.next().getVertex();
-          ctx.write(new Triangle(connectingVertex, edge.getFirstVertex(), edge.getSecondVertex()), NullWritable.get());
+          Triangle triangle = new Triangle(connectingVertex, edge.getFirstVertex(), edge.getSecondVertex());
+          log.trace("{}", triangle);
+          ctx.write(triangle, NullWritable.get());
         }
       }
     }

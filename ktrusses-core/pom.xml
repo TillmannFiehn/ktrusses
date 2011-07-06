@@ -33,13 +33,14 @@
   </profiles>
 
   <dependencies>
-  	<dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-    </dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+	<dependency>
+	  <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -52,15 +53,6 @@
       <artifactId>easymock</artifactId>
       <version>3.0</version><!--$NO-MVN-MAN-VER$-->
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.lucene</groupId>
-      <artifactId>lucene-core</artifactId>
-      <version>3.1.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.mahout</groupId>

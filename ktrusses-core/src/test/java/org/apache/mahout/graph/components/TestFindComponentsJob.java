@@ -78,7 +78,6 @@ public class TestFindComponentsJob extends MahoutTestCase {
     }
 
     assertEquals(2, components.size());
-//    System.out.println(components);
     assertEquals(Sets.newTreeSet(new Iterable<Vertex>() {
       Long[] comp = new Long[] { 0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, };
 

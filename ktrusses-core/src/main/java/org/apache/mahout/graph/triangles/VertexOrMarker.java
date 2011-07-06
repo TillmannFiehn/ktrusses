@@ -53,6 +53,10 @@ public class VertexOrMarker implements Writable {
   public Vertex getVertex() {
     return connectingVertex;
   }
+  @Override
+  public String toString() {
+    return marker ? "(M)" : connectingVertex.toString();
+  }
 
   @Override
   public void write(DataOutput out) throws IOException {
