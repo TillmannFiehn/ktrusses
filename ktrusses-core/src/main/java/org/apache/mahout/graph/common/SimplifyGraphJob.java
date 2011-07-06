@@ -18,10 +18,8 @@
 package org.apache.mahout.graph.common;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
@@ -65,10 +63,7 @@ public class SimplifyGraphJob extends AbstractJob {
       return -1;
     }
 
-    Path inputPath = getInputPath();
-    Path outputPath = getOutputPath();
-
-    Job simplify = prepareJob(inputPath, outputPath, TextInputFormat.class, SimplifyGraphMapper.class,
+    Job simplify = prepareJob(getInputPath(), getOutputPath(), TextInputFormat.class, SimplifyGraphMapper.class,
         UndirectedEdge.class, NullWritable.class, SimplifyGraphReducer.class, UndirectedEdge.class, NullWritable.class,
         SequenceFileOutputFormat.class);
     simplify.waitForCompletion(true);
@@ -80,6 +75,7 @@ public class SimplifyGraphJob extends AbstractJob {
   public static class SimplifyGraphMapper extends Mapper<Object, Text, UndirectedEdge, NullWritable> {
 
     private static final Pattern SEPARATOR = Pattern.compile(",");
+
     @Override
     public void map(Object key, Text line, Context ctx) throws IOException, InterruptedException {
       try {
