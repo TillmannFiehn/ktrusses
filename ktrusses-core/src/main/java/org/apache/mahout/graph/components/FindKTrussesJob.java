@@ -56,10 +56,10 @@ import org.slf4j.LoggerFactory;
  * <li>Augment the graph with degrees. See
  * {@link org.apache.mahout.graph.common.AugmentGraphWithDegreesJob}</li>
  * <li>Enumerate the triangles of the graph. See
- * {@link org.apache.mahout.graph.common.EnumerateTrianglesJob}</li>
+ * {@link org.apache.mahout.graph.triangles.EnumerateTrianglesJob}</li>
  * <li>For each edge record the number of triangles containing that edge and
- * keep only edges with sufficient support using classes in {@link FindKTrusses}
- * .</li>
+ * keep only edges with sufficient support using classes in
+ * {@link FindKTrussesJob} .</li>
  * </ol>
  * 
  * <p>
@@ -77,17 +77,12 @@ import org.slf4j.LoggerFactory;
  * <dd>The path of the input file or directory</dd>
  * <dt>output</dt>
  * <dd>The path of output directory</dd>
- * <dt>org.apache.mahout.graph.model.Parser</dt>
- * <dd>An optional class implementing
- * {@link org.apache.mahout.graph.model.Parser} that can be used to parse a
- * variety of graphs</dd>
  * <dt>k</dt>
  * <dd>The <code>k</code> parameter of the k-trusses to find
  * </dl>
  * 
- * The output is a {@link SequenceFile} containing a {@link Membership} as key
- * and a {@link org.apache.mahout.graph.model.ZoneAssignment} as value
- * (contained in a {@link GenericGraphElement}).
+ * The output is a {@link SequenceFile} containing a {@link Vertex} as key and a
+ * representative vertex {@link FlaggedVertex} as value.
  */
 public class FindKTrussesJob extends AbstractJob {
 
@@ -212,10 +207,11 @@ public class FindKTrussesJob extends AbstractJob {
       /*
        * Prepare the input for FindComponents
        */
-      Job convertFromat = prepareJob(currentTrussesDirPath, componentsInputPath,
-          SequenceFileInputFormat.class, PrepareInputMapper.class,
-          Vertex.class, FlaggedVertex.class, Reducer.class, Vertex.class,
-          FlaggedVertex.class, SequenceFileOutputFormat.class);
+      Job convertFromat = prepareJob(currentTrussesDirPath,
+          componentsInputPath, SequenceFileInputFormat.class,
+          PrepareInputMapper.class, Vertex.class, FlaggedVertex.class,
+          Reducer.class, Vertex.class, FlaggedVertex.class,
+          SequenceFileOutputFormat.class);
       convertFromat.waitForCompletion(true);
     }
 

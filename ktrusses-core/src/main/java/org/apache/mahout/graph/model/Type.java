@@ -18,8 +18,7 @@
 package org.apache.mahout.graph.model;
 
 /**
- * Constants to distinguish between different types that can be contained by
- * {@link GenericGraphElement }.
+ * Constants to distinguish between different types.
  */
 public enum Type {
 
@@ -30,27 +29,11 @@ public enum Type {
    */
 
   /**
-   * {@link RepresentativeEdge}
-   */
-  RepresentativeEdge,
-  /**
    * {@link Vertex}
    */
   Vertex,
   /**
-   * {@link OpenTriad}
-   */
-  OpenTriad,
-  /**
    * {@link Triangle}
    */
   Triangle,
-  /**
-   * {@link Zone}
-   */
-  Zone,
-  /**
-   * {@link ZoneAssignment}
-   */
-  ZoneAssignment,
 }

@@ -154,6 +154,9 @@ public class FindComponentsJob extends AbstractJob {
     return 0;
   }
 
+  /**
+   * Prepares the initial assignments file. One zone assignment for each node
+   */
   public static class PrepareAssignmentsFileMapper extends
       Mapper<Vertex, FlaggedVertex, Vertex, Vertex> {
 
@@ -166,6 +169,9 @@ public class FindComponentsJob extends AbstractJob {
     }
   }
 
+  /**
+   * Prepares the initial assignments file. One zone assignment for each node
+   */
   public static class PrepareAssignmentsFileReducer extends
       Reducer<Vertex, Vertex, Vertex, FlaggedVertex> {
 
@@ -186,7 +192,7 @@ public class FindComponentsJob extends AbstractJob {
    * 
    * <ul>
    * <li>edge file</li>
-   * <li>zone file</li>
+   * <li>assignments file</li>
    * </ul>
    * 
    * Forward the zone assignments.<br />
@@ -219,11 +225,9 @@ public class FindComponentsJob extends AbstractJob {
   }
 
   /**
-   * Joins zones and edges. Input is a {@link ZoneAssignment} and a set of edges
+   * Joins zones and edges. Input is a zone assignment and a set of edges
    * the incident to the vertex that is assigned with the assignment.
    * <p>
-   * This class joins {@link Zone} to all the edges of the input, outputting the
-   * {@link Zone} as value, binned under the membership set of the edge.
    */
   public static class AssignOneZoneToEdgesReducer extends
       Reducer<JoinableVertex, FlaggedVertex, UndirectedEdge, Vertex> {
@@ -266,6 +270,16 @@ public class FindComponentsJob extends AbstractJob {
     }
   }
 
+  /**
+   * This {@linkplain Mapper } takes two inputs:
+   * <ul>
+   * <li>interzone edges file</li>
+   * <li>assignments file</li>
+   * </ul>
+   * 
+   * Zone assignments to be keyed under the zone representative
+   * Forward the interzone edges.
+   */
   public static class BinZoneAssignmentsAndInterzoneEdgesMapper extends
       Mapper<Vertex, FlaggedVertex, JoinableVertex, FlaggedVertex> {
 
@@ -287,6 +301,11 @@ public class FindComponentsJob extends AbstractJob {
     }
   }
 
+  /**
+   * Assigns new zone representatives to vertices.<p>
+   * Forwards vertices when no interzone edge indicates a better zone assignment.
+   *
+   */
   public static class AssignNewZonesToVerticesReducer extends
       Reducer<JoinableVertex, FlaggedVertex, Vertex, FlaggedVertex> {
     @Override

@@ -18,14 +18,27 @@ import org.apache.mahout.graph.common.SimplifyGraphJob;
 import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.Vertex;
 
+/**
+ * Prepares the input for the {@link FindComponentsJob }. This includes:
+ * <ul>
+ * <li>simplifying the graph with {@link SimplifyGraphJob }</li>
+ * <li>converting the format</li>
+ * </ul>
+ */
 public class PrepareInputJob extends AbstractJob {
 
+  /**
+   * Converts the output format from {@link SimplifyGraphJob } or the
+   * {@link FindKTrussesJob.DropUnsupportedEdgesReducer } to the input format for
+   * {@link FindComponentsJob }.
+   * 
+   */
   public static class PrepareInputMapper extends
       Mapper<UndirectedEdge, NullWritable, Vertex, FlaggedVertex> {
     @Override
-    public void map(UndirectedEdge edge, NullWritable nw, Context ctx) throws IOException,
-        InterruptedException {
-      Vertex from = edge.getFirstVertex(); 
+    public void map(UndirectedEdge edge, NullWritable nw, Context ctx)
+        throws IOException, InterruptedException {
+      Vertex from = edge.getFirstVertex();
       Vertex to = edge.getSecondVertex();
       ctx.write(from, FlaggedVertex.createUndirectedEdge(to));
     }
@@ -52,7 +65,8 @@ public class PrepareInputJob extends AbstractJob {
     Configuration conf = new Configuration();
 
     Path simplifyInputPath = inputPath;
-    Path simplifyOutputPath = new Path(tempDirPath + "/simplify" + System.currentTimeMillis());
+    Path simplifyOutputPath = new Path(tempDirPath + "/simplify"
+        + System.currentTimeMillis());
 
     if (shouldRunNextPhase(parsedArgs, currentPhase)) {
       /*
