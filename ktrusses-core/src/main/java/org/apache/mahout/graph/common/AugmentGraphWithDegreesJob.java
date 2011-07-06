@@ -47,6 +47,8 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
   
   private static final Logger log = LoggerFactory.getLogger(AugmentGraphWithDegreesJob.class);
 
+  public static final String TMP_AUGMENTED_EDGES = "augmented-edges";
+
   public static void main(String[] args) throws Exception {
     ToolRunner.run(new AugmentGraphWithDegreesJob(), args);
   }
@@ -62,22 +64,19 @@ public class AugmentGraphWithDegreesJob extends AbstractJob {
       return -1;
     }
 
-    Path tempDirPath = new Path(parsedArgs.get("--tempDir"));
-
     Path inputPath = getInputPath();
-    Path augmentedEdgesPath = new Path(tempDirPath, "augmented-edges");
     Path outputPath = getOutputPath();
 
     // scatter the edges to each of the vertices and count degree
-    Job scatter = prepareJob(inputPath, augmentedEdgesPath, SequenceFileInputFormat.class, ScatterEdgesMapper.class,
-        Vertex.class, Vertex.class, SumDegreesReducer.class, UndirectedEdge.class, VertexWithDegree.class,
-        SequenceFileOutputFormat.class);
+    Job scatter = prepareJob(inputPath, getTempPath(TMP_AUGMENTED_EDGES), SequenceFileInputFormat.class,
+        ScatterEdgesMapper.class, Vertex.class, Vertex.class, SumDegreesReducer.class, UndirectedEdge.class,
+        VertexWithDegree.class, SequenceFileOutputFormat.class);
     scatter.waitForCompletion(true);
 
     // join augmented edges with partial degree information to to complete records
-    Job join = prepareJob(augmentedEdgesPath, outputPath, SequenceFileInputFormat.class, Mapper.class,
-        UndirectedEdge.class, VertexWithDegree.class, JoinDegreesReducer.class, UndirectedEdgeWithDegrees.class,
-        NullWritable.class, SequenceFileOutputFormat.class);
+    Job join = prepareJob(getTempPath(TMP_AUGMENTED_EDGES), outputPath, SequenceFileInputFormat.class,
+        Mapper.class, UndirectedEdge.class, VertexWithDegree.class, JoinDegreesReducer.class,
+        UndirectedEdgeWithDegrees.class, NullWritable.class, SequenceFileOutputFormat.class);
     join.waitForCompletion(true);
 
     return 0;
