@@ -34,22 +34,13 @@ import org.apache.mahout.graph.model.Triangle;
 import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.Vertex;
 import org.easymock.EasyMock;
-import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class TestFindKTrussesJob extends MahoutTestCase {
 
-  @Before
-  public void init() {
-    Logger logger = LoggerFactory.getLogger(getClass());
-    logger.trace("Hello I am running.");
-  }
-  
   private static final IntWritable ONE = new IntWritable(1);
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
