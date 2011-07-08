@@ -34,6 +34,7 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.mahout.common.AbstractJob;
+import org.apache.mahout.graph.components.FlaggedVertex.PayloadType;
 import org.apache.mahout.graph.model.UndirectedEdge;
 import org.apache.mahout.graph.model.Vertex;
 import org.apache.mahout.graph.triangles.EnumerateTrianglesJob;
@@ -236,13 +237,17 @@ public class FindComponentsJob extends AbstractJob {
         Iterable<FlaggedVertex> verticesAndZone, Context ctx)
         throws IOException, InterruptedException {
       Iterator<FlaggedVertex> iterator = verticesAndZone.iterator();
-      Vertex assignment = iterator.next().getVertex();
+      FlaggedVertex fv = iterator.next(); //prepended input due to JoinableVertex, exactly one
+      if(!fv.getType().equals(PayloadType.ZoneAssignment)) throw new IllegalArgumentException();
+      Vertex assignment = fv.getVertex(); 
       while (iterator.hasNext()) {
-        Vertex second = iterator.next().getVertex();
+        FlaggedVertex next = iterator.next();
+        if(!next.getType().equals(PayloadType.UndirectedEdge)) throw new IllegalArgumentException();
+        Vertex second = next.getVertex();
         ctx.write(new UndirectedEdge(first.getVertex(), second), assignment);
       }
     }
-  }
+  } 
 
   /**
    * Find the minimum zone for each edge.
@@ -297,6 +302,8 @@ public class FindComponentsJob extends AbstractJob {
             new JoinableVertex(vertexOrRepresentative.getVertex(), false),
             FlaggedVertex.createZoneEntry(vertex));
         break;
+      default:
+        throw new IllegalArgumentException();
       }
     }
   }
@@ -315,7 +322,7 @@ public class FindComponentsJob extends AbstractJob {
       Set<Long> ids = new TreeSet<Long>();
       for (FlaggedVertex vertexOrRepresentative : betterRepresentativesAndVertices) {
         switch (vertexOrRepresentative.getType()) {
-        case InterzoneEdge:
+        case InterzoneEdge: //prepended input due to JoinableVertex
           // assignment -> put the improved representative to set
           ids.add(vertexOrRepresentative.getVertex().getId());
           break;
